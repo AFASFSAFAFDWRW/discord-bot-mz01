@@ -108,7 +108,7 @@ async def change_nickname(ctx, action: str, member: discord.Member, *, new_nick:
 
     await ctx.send(
         f"{ctx.author.mention} сменил имя пользователю {member.mention}\n"
-        f'с "{member.display_name}" на "{new_nick}"'
+        f'с "{old_nick}" на "{new_nick}"'
     )
 
 
