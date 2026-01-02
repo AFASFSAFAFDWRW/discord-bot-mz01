@@ -77,6 +77,8 @@ async def mz_error(ctx, error):
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("❌ Использование: !МЗ @пользователь")
 
+from datetime import datetime, timezone, timedelta
+
 ROLE_1 = "[АБ] Администрация Больницы"
 ROLE_2 = "Заведующие / Зам. Заведующие"
 
@@ -88,9 +90,15 @@ def has_any_role():
     return commands.check(predicate)
 
 
-@bot.command(name="смена ника")
+@bot.command(name="смена")
 @has_any_role()
-async def change_nick(ctx, member: discord.Member, *, new_nick: str):
+async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str):
+    # Проверка формата команды
+    if action.lower() != "ника":
+        await ctx.send("❌ Использование: !смена ника @пользователь Новый ник")
+        return
+
+    # Ник на сервере ДО изменения
     old_nick = member.display_name
 
     try:
@@ -102,21 +110,24 @@ async def change_nick(ctx, member: discord.Member, *, new_nick: str):
         await ctx.send("❌ Не удалось изменить ник. Попробуйте позже.")
         return
 
+    # Время по Москве (UTC+3)
+    moscow_tz = timezone(timedelta(hours=3))
+    now = datetime.now(moscow_tz)
+
+    date_str = now.strftime("%d.%m.%Y")
+    time_str = now.strftime("%H:%M")
+
+    # Embed с нужным форматом
     embed = discord.Embed(
-        title="✏️ Смена ника",
+        description=(
+            "📝 **Лог: Изменение имени пользователя**\n"
+            f"👤 **Пользователь:** {member.mention}\n"
+            f"**Старое Имя Пользователя:** {old_nick}\n"
+            f"**Новое Имя Пользователя:** {new_nick}\n"
+            f"**Дата:** {date_str}\n"
+            f"**Время:** {time_str} (МСК)"
+        ),
         color=discord.Color.green()
-    )
-
-    embed.add_field(
-        name="👤 Пользователь:  value=member.mention",
-        value=member.mention,
-        inline=False
-    )
-
-    embed.add_field(
-        name="📝 Изменение",
-        value=f'**Старое Имя Пользователя:** {old_nick}\n**Новое Имя Пользователя:** {new_nick}',
-        inline=False
     )
 
     embed.set_footer(
