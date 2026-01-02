@@ -49,37 +49,62 @@ def has_any_role():
     return commands.check(predicate)
 
 
-@bot.command()
+@bot.command(name="МЗ")
 @has_any_role()
-async def МЗ(ctx, member: discord.Member):
+async def mz(ctx, member: discord.Member):
     role = discord.utils.get(ctx.guild.roles, name=MZ_ROLE)
 
     if role is None:
-        await ctx.send("❌ Роль 'МЗ' не найдена.")
+        await ctx.send("❌ Роль **Министерство Здравоохранения** не найдена.")
         return
 
     await member.add_roles(role)
 
-    # Embed с нужным форматом
+    # EMBED В СТИЛЕ ВЕБХУКА
     embed = discord.Embed(
         description=(
-        f"💊 | Роль фракции <@&1456637633026330731> пользователю {member.mention} добавлена. ✅️"
-   ),
+            f"💊 **Роль фракции** <@&{role.id}>\n"
+            f"👤 **Пользователь:** {member.mention}\n\n"
+            "✅ **Роль успешно добавлена**"
+        ),
         color=discord.Color.green()
     )
 
+    # ШАПКА КАК У ВЕБХУКА
+    embed.set_author(
+        name="Система управления ролями",
+        icon_url=bot.user.avatar.url if bot.user.avatar else None
+    )
 
-@МЗ.error
+    # НИЖНИЙ ТЕКСТ
+    embed.set_footer(
+        text=f"Выдал: {ctx.author}",
+        icon_url=ctx.author.avatar.url if ctx.author.avatar else None
+    )
+
+    await ctx.send(embed=embed)
+
+
+@mz.error
 async def mz_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
-        await ctx.send(
-            "❌ У вас нет прав на эту команду.\n"
-            "Требуется одна из ролей:\n"
-            "• **[АБ] Администрация Больницы**\n"
-            "• **Заведующие / Зам. Заведующие**"
+        embed = discord.Embed(
+            description=(
+                "❌ **Недостаточно прав**\n\n"
+                "Требуется одна из ролей:\n"
+                "• **[АБ] Администрация Больницы**\n"
+                "• **Заведующие / Зам. Заведующие**"
+            ),
+            color=discord.Color.red()
         )
+        await ctx.send(embed=embed)
+
     elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("❌ Использование: !МЗ @пользователь")
+        embed = discord.Embed(
+            description="❌ Использование: **!МЗ @пользователь**",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
 
 from datetime import datetime, timezone, timedelta
 
