@@ -133,8 +133,8 @@ async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str
     embed.set_footer(
         text=(
             f"Изменил: {ctx.author}\n"
-            f"||ID изменившего: {ctx.author.id}||\n"
-            f"||ID пользователя: {member.id}||"
+            f"|| ID изменившего: {ctx.author.id} ||\n"
+            f"|| ID пользователя: {member.id} ||"
         ),
         icon_url=ctx.author.avatar.url if ctx.author.avatar else None
     )
