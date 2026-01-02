@@ -147,9 +147,8 @@ async def change_nick_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
         await ctx.send(
             "❌ У вас нет прав на эту команду.\n"
-            "Требуется одна из ролей:\n"
-            "• **[АБ] Администрация Больницы**\n"
-            "• **Заведующие / Зам. Заведующие**"
+            "Необходимо состоять в отделе Администрации Больницы или быть Заведующим/Зам. Заведующего отделением."
+
         )
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("❌ Использование: !смена ника @пользователь Новый ник")
