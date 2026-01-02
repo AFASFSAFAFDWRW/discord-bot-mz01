@@ -77,5 +77,53 @@ async def mz_error(ctx, error):
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("❌ Использование: !МЗ @пользователь")
 
+ROLE_1 = "[АБ] Администрация Больницы"
+ROLE_2 = "Заведующие / Зам. Заведующие"
+
+
+def has_any_role():
+    async def predicate(ctx):
+        role_names = [role.name for role in ctx.author.roles]
+        return ROLE_1 in role_names or ROLE_2 in role_names
+    return commands.check(predicate)
+
+
+@bot.command(name="смена")
+@has_any_role()
+async def change_nickname(ctx, action: str, member: discord.Member, *, new_nick: str):
+    if action.lower() != "ника":
+        await ctx.send("❌ Использование: !смена ника @пользователь Новый ник")
+        return
+
+    old_nick = member.nick or member.name
+
+    try:
+        await member.edit(nick=new_nick)
+    except discord.Forbidden:
+        await ctx.send("❌ У меня нет прав для смены ника этому пользователю.")
+        return
+    except discord.HTTPException:
+        await ctx.send("❌ Не удалось изменить ник. Попробуйте позже.")
+        return
+
+    await ctx.send(
+        f"{ctx.author.mention} сменил имя пользователю {member.mention}\n"
+        f'с "{old_nick}" на "{new_nick}"'
+    )
+
+
+@change_nickname.error
+async def change_nickname_error(ctx, error):
+    if isinstance(error, commands.CheckFailure):
+        await ctx.send(
+            "❌ У вас нет прав на эту команду.\n"
+            "Требуется одна из ролей:\n"
+            "• **[АБ] Администрация Больницы**\n"
+            "• **Заведующие / Зам. Заведующие**"
+        )
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("❌ Использование: !смена ника @пользователь Новый ник")
+
+
 import os
 bot.run(os.getenv("TOKEN"))
