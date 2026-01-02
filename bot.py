@@ -63,9 +63,9 @@ async def mz(ctx, member: discord.Member):
     # EMBED В СТИЛЕ ВЕБХУКА
     embed = discord.Embed(
         description=(
-            f"💊 **Роль фракции** <@&{role.id}>\n"
-            f"👤 **Пользователь:** {member.mention}\n\n"
             "✅ **Роль успешно добавлена**"
+            f"💊 **Роль фракции** <@&{role.id}>\n\n"
+            f"👤 **Пользователь:** {member.mention}"
         ),
         color=discord.Color.green()
     )
