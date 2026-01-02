@@ -18,6 +18,9 @@ MZ_ROLE = "Министерство Здравоохранения"
 ROLE_1 = "[АБ] Администрация Больницы"
 ROLE_2 = "Заведующие / Зам. Заведующие"
 
+CIVIL_ROLE = "Гражданский"
+FRACTION_NAME = "Министерство Здравоохранения"
+
 # ---------- CHECK ----------
 def has_any_role():
     async def predicate(ctx):
@@ -135,6 +138,110 @@ async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str
     )
 
     await ctx.send(embed=embed)
+
+@bot.command(
+    name="уволить",
+    aliases=["аннулирование роли"]
+)
+@has_any_role()
+async def fire(ctx, member: discord.Member, *, reason: str = None):
+
+    # Удаляем сообщение с командой
+    try:
+        await ctx.message.delete()
+    except discord.Forbidden:
+        pass
+
+    guild = ctx.guild
+
+    civil_role = discord.utils.get(guild.roles, name=CIVIL_ROLE)
+    if civil_role is None:
+        await ctx.send("❌ Роль **Гражданский** не найдена.")
+        return
+
+    # Все роли кроме @everyone
+    roles_to_remove = [
+        role for role in member.roles
+        if role != guild.default_role
+    ]
+
+    try:
+        await member.remove_roles(*roles_to_remove)
+        await member.add_roles(civil_role)
+    except discord.Forbidden:
+        await ctx.send("❌ У меня недостаточно прав для управления ролями.")
+        return
+
+    # ================== УВОЛЬНЕНИЕ ==================
+    if ctx.invoked_with == "уволить":
+
+        if not reason:
+            await ctx.send("❌ Укажите причину увольнения.")
+            return
+
+        embed = discord.Embed(
+            description=(
+                "📝 **Лог: Увольнение сотрудника**\n\n"
+                f"👤 **Сотрудник:** {member.mention}\n"
+                f"Данные о сотруднике: {member.display_name}\n"
+                f"ID пользователя: {member.id}\n\n"
+                "📄 **Статус:** Уволен\n"
+                f"📝 **Причина:** {reason}"
+            ),
+            color=discord.Color.red()
+        )
+
+        embed.set_author(
+            name="Система управления персоналом",
+            icon_url=bot.user.avatar.url if bot.user.avatar else None
+        )
+
+        embed.set_footer(
+            text=f"Исполнитель: {ctx.author.display_name}",
+            icon_url=ctx.author.avatar.url if ctx.author.avatar else None
+        )
+
+        await ctx.send(embed=embed)
+
+        # -------- ЛС УВОЛЕННОМУ --------
+        try:
+            dm_embed = discord.Embed(
+                description=(
+                    f"Уважаемый **{member.display_name}**, \n\n"
+                    f"Вы были уволены из фракции **{FRACTION_NAME}**.\n\n"
+                    f"Исполнитель: {ctx.author.display_name}\n"
+                    f"Причина: {reason}"
+                ),
+                color=discord.Color.red()
+            )
+            await member.send(embed=dm_embed)
+        except discord.Forbidden:
+            pass
+
+    # ================== АННУЛИРОВАНИЕ ==================
+    else:
+        embed = discord.Embed(
+            description=(
+                "📝 **Лог: Аннулирование ролей**\n\n"
+                "✅ **Роли успешно аннулированы**\n\n"
+                f"👤 **Пользователь:** {member.mention}\n"
+                f"Данные о сотруднике: {member.display_name}\n"
+                f"ID пользователя: {member.id}"
+            ),
+            color=discord.Color.orange()
+        )
+
+        embed.set_author(
+            name="Система управления персоналом",
+            icon_url=bot.user.avatar.url if bot.user.avatar else None
+        )
+
+        embed.set_footer(
+            text=f"Исполнитель: {ctx.author.display_name}",
+            icon_url=ctx.author.avatar.url if ctx.author.avatar else None
+        )
+
+        await ctx.send(embed=embed)
 
 # ---------- RUN ----------
 bot.run(os.getenv("TOKEN"))
