@@ -60,8 +60,12 @@ async def МЗ(ctx, member: discord.Member):
 
     await member.add_roles(role)
 
-    await ctx.send(
+    # Embed с нужным форматом
+    embed = discord.Embed(
+        description=(
         f"💊 | Роль фракции <@&1456637633026330731> пользователю {member.mention} добавлена. ✅️"
+   ),
+        color=discord.Color.green()
     )
 
 
