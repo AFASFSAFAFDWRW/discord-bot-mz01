@@ -88,7 +88,7 @@ def has_any_role():
     return commands.check(predicate)
 
 
-@bot.command(name="смена")
+@bot.command(name="смена ника")
 @has_any_role()
 async def change_nick(ctx, member: discord.Member, *, new_nick: str):
     old_nick = member.display_name
@@ -108,7 +108,7 @@ async def change_nick(ctx, member: discord.Member, *, new_nick: str):
     )
 
     embed.add_field(
-        name="👤 Пользователь",
+        name="👤 Пользователь:  value=member.mention",
         value=member.mention,
         inline=False
     )
@@ -137,7 +137,7 @@ async def change_nick_error(ctx, error):
             "• **Заведующие / Зам. Заведующие**"
         )
     elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("❌ Использование: !смена @пользователь Новый ник")
+        await ctx.send("❌ Использование: !смена ника @пользователь Новый ник")
 
 
 import os
