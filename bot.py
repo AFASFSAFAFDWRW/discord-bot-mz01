@@ -120,7 +120,7 @@ async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str
     # Embed с нужным форматом
     embed = discord.Embed(
         description=(
-            "📝 **Лог: Изменение имени пользователя**\n"
+            "📝 **Лог:** Изменение имени пользователя\n"
             f"👤 **Пользователь:** {member.mention}\n"
             f"**Старое Имя Пользователя:** {old_nick}\n"
             f"**Новое Имя Пользователя:** {new_nick}\n"
