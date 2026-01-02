@@ -90,12 +90,8 @@ def has_any_role():
 
 @bot.command(name="смена")
 @has_any_role()
-async def change_nickname(ctx, action: str, member: discord.Member, *, new_nick: str):
-    if action.lower() != "ника":
-        await ctx.send("❌ Использование: !смена ника @пользователь Новый ник")
-        return
-
-    old_nick = member.nick or member.name
+async def change_nick(ctx, member: discord.Member, *, new_nick: str):
+    old_nick = member.display_name
 
     try:
         await member.edit(nick=new_nick)
@@ -106,14 +102,33 @@ async def change_nickname(ctx, action: str, member: discord.Member, *, new_nick:
         await ctx.send("❌ Не удалось изменить ник. Попробуйте позже.")
         return
 
-    await ctx.send(
-        f"{ctx.author.mention} сменил имя пользователю {member.mention}\n"
-        f'с "{old_nick}" на "{new_nick}"'
+    embed = discord.Embed(
+        title="✏️ Смена ника",
+        color=discord.Color.green()
     )
 
+    embed.add_field(
+        name="👤 Пользователь",
+        value=member.mention,
+        inline=False
+    )
 
-@change_nickname.error
-async def change_nickname_error(ctx, error):
+    embed.add_field(
+        name="📝 Изменение",
+        value=f'**Старое Имя Пользователя:** {old_nick}\n**Новое Имя Пользователя:** {new_nick}',
+        inline=False
+    )
+
+    embed.set_footer(
+        text=f"Изменил: {ctx.author}",
+        icon_url=ctx.author.avatar.url if ctx.author.avatar else None
+    )
+
+    await ctx.send(embed=embed)
+
+
+@change_nick.error
+async def change_nick_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
         await ctx.send(
             "❌ У вас нет прав на эту команду.\n"
@@ -122,7 +137,7 @@ async def change_nickname_error(ctx, error):
             "• **Заведующие / Зам. Заведующие**"
         )
     elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("❌ Использование: !смена ника @пользователь Новый ник")
+        await ctx.send("❌ Использование: !смена @пользователь Новый ник")
 
 
 import os
