@@ -37,7 +37,7 @@ async def warn_error(ctx, error):
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("❌ Использование: !предупредить @пользователь причина")
 
-MZ_ROLE = "МЗ"
+MZ_ROLE = "Министерство Здравоохранения"
 ROLE_1 = "[АБ] Администрация Больницы"
 ROLE_2 = "Заведующие / Зам. Заведующие"
 
