@@ -1,18 +1,38 @@
 import discord
 from discord.ext import commands
+from datetime import datetime, timezone, timedelta
+import os
 
+# ---------- INTENTS ----------
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ---------- КОНСТАНТЫ ----------
 ALLOWED_ROLE = "[АБ] Администрация Больницы"
 WARNING_ROLE = "Устное предупреждение"
 
+MZ_ROLE = "Министерство Здравоохранения"
+ROLE_1 = "[АБ] Администрация Больницы"
+ROLE_2 = "Заведующие / Зам. Заведующие"
+
+# ---------- CHECK ----------
+def has_any_role():
+    async def predicate(ctx):
+        return any(
+            role.name in (ROLE_1, ROLE_2)
+            for role in ctx.author.roles
+        )
+    return commands.check(predicate)
+
+# ---------- EVENTS ----------
 @bot.event
 async def on_ready():
     print(f"Бот запущен как {bot.user}")
+
+# ---------- КОМАНДЫ ----------
 
 @bot.command()
 @commands.has_role(ALLOWED_ROLE)
@@ -37,11 +57,12 @@ async def warn_error(ctx, error):
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("❌ Использование: !предупредить @пользователь причина")
 
+# ---------- МЗ ----------
 @bot.command(name="МЗ")
 @has_any_role()
 async def mz(ctx, member: discord.Member):
 
-    # УДАЛЯЕМ СООБЩЕНИЕ С КОМАНДОЙ
+    # Удаляем сообщение с командой
     try:
         await ctx.message.delete()
     except discord.Forbidden:
@@ -77,82 +98,43 @@ async def mz(ctx, member: discord.Member):
 
     await ctx.send(embed=embed)
 
-from datetime import datetime, timezone, timedelta
-
-ROLE_1 = "[АБ] Администрация Больницы"
-ROLE_2 = "Заведующие / Зам. Заведующие"
-
-
-def has_any_role():
-    async def predicate(ctx):
-        role_names = [role.name for role in ctx.author.roles]
-        return ROLE_1 in role_names or ROLE_2 in role_names
-    return commands.check(predicate)
-
-
+# ---------- СМЕНА НИКА ----------
 @bot.command(name="смена")
 @has_any_role()
 async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str):
-    # Проверка формата команды
     if action.lower() != "ника":
         await ctx.send("❌ Использование: !смена ника @пользователь Новый ник")
         return
 
-    # Ник на сервере ДО изменения
     old_nick = member.display_name
 
     try:
         await member.edit(nick=new_nick)
     except discord.Forbidden:
-        await ctx.send("❌ У меня нет прав для смены ника этому пользователю.")
-        return
-    except discord.HTTPException:
-        await ctx.send("❌ Не удалось изменить ник. Попробуйте позже.")
+        await ctx.send("❌ У меня нет прав для смены ника.")
         return
 
-    # Время по Москве (UTC+3)
     moscow_tz = timezone(timedelta(hours=3))
     now = datetime.now(moscow_tz)
 
-    date_str = now.strftime("%d.%m.%Y")
-    time_str = now.strftime("%H:%M")
-
-    # Embed с нужным форматом
     embed = discord.Embed(
         description=(
             "📝 **Лог:** Изменение имени пользователя\n"
             f"👤 **Пользователь:** {member.mention}\n"
-            f"**Старое Имя Пользователя:** {old_nick}\n"
-            f"**Новое Имя Пользователя:** {new_nick}\n"
-            f"**ID пользователя:** {member.id}\n"
-            f"**Дата:** {date_str}\n"
-            f"**Время:** {time_str} (МСК)"
+            f"**Старое имя:** {old_nick}\n"
+            f"**Новое имя:** {new_nick}\n"
+            f"**Дата:** {now.strftime('%d.%m.%Y')}\n"
+            f"**Время:** {now.strftime('%H:%M')} (МСК)"
         ),
         color=discord.Color.green()
     )
 
     embed.set_footer(
-        text=(
-            f"Изменил: {ctx.author}\n"
-            f"ID изменившего: {ctx.author.id}"
-        ),
+        text=f"Изменил: {ctx.author}",
         icon_url=ctx.author.avatar.url if ctx.author.avatar else None
     )
 
     await ctx.send(embed=embed)
 
-
-@change_nick.error
-async def change_nick_error(ctx, error):
-    if isinstance(error, commands.CheckFailure):
-        await ctx.send(
-            "❌ У вас нет прав на эту команду.\n"
-            "Необходимо состоять в отделе Администрации Больницы или быть Заведующим/Зам. Заведующего отделением."
-
-        )
-    elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("❌ Использование: !смена ника @пользователь Новый ник")
-
-
-import os
+# ---------- RUN ----------
 bot.run(os.getenv("TOKEN"))
