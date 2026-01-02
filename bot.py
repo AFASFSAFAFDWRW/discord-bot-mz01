@@ -124,8 +124,8 @@ async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str
             f"👤 **Пользователь:** {member.mention}\n"
             f"**Старое Имя Пользователя:** {old_nick}\n"
             f"**Новое Имя Пользователя:** {new_nick}\n"
-            f"**Дата:** {date_str}\n"
-            f"**Время:** {time_str} (МСК)"
+            f"🗓️ **Дата:** {date_str}\n"
+            f"⏳ **Время:** {time_str} (МСК)"
         ),
         color=discord.Color.green()
     )
