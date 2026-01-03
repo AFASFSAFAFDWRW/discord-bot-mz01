@@ -71,22 +71,21 @@ async def mz(ctx, member: discord.Member):
         roles.append(role)
 
     civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
-    removed_roles = []
-
     if civil and civil in member.roles:
-        removed_roles.append(civil)
         await member.remove_roles(civil)
 
     await member.add_roles(*roles)
 
-    await ctx.send(embed=discord.Embed(
+    embed = discord.Embed(
         description=(
             "📝 **Лог: Зачисление в МЗ**\n\n"
             f"👤 Пользователь: {member.mention}\n"
             f"Исполнитель: {ctx.author.mention}"
         ),
         color=discord.Color.green()
-    ))
+    )
+
+    await ctx.send(embed=embed)
 
 # =====================================================
 # ========== НОВЫЕ КОМАНДЫ ГОС ФРАКЦИЙ =================
@@ -113,16 +112,19 @@ async def give_state_role(ctx, member, main_role_name):
 
     await member.add_roles(main_role, state_role)
 
+    removed_text = " ".join(r.mention for r in removed_roles) if removed_roles else "—"
+
     embed = discord.Embed(
         description=(
             "📝 **Лог: Добавление ролей**\n\n"
             f"👤 Пользователь: {member.mention}\n"
             f"📌 Роли: {main_role.mention} {state_role.mention}\n"
-            f"❌ Снятые роли: {' '.join(r.mention for r in removed_roles) if removed_roles else '—'}\n\n"
+            f"❌ Снятые роли: {removed_text}\n\n"
             f"Выдал роли: {ctx.author.mention}"
         ),
         color=discord.Color.green()
     )
+
     await ctx.send(embed=embed)
 
 @bot.command(name="правительство", aliases=["Правительство"])
