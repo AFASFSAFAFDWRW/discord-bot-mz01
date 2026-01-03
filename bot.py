@@ -320,14 +320,14 @@ async def unban_request(ctx, user_id: int, *, reason: str):
 async def banlist(ctx):
     bans = load_bans()
     if not bans:
-        await ctx.send("🟢 Банлист пуст.")
+        await ctx.send("🟢 Банлист пуст. Ваши сотрудники превосходно работают!")
         return
 
     text = ""
     for i, (uid, data) in enumerate(bans.items(), 1):
         text += (
             f"{i}. {data['name']} | {uid} | "
-            f"{data['ban_date']} | {data['unban_date']} | {data['reason']}\n"
+            f"{data['ban_date']} | {data['unban_date']} | Причина: {data['reason']}\n"
         )
 
     await ctx.send(embed=discord.Embed(
