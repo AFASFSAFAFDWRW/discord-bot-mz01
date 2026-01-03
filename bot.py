@@ -293,7 +293,10 @@ async def ban_request(ctx, member: discord.Member, days: int, *, reason: str):
 # ====================== !разбан ======================
 
 @bot.command(name="разбан")
-@has_any_role("Заведующие / Зам. Заведующие", "[АБ] Администрация Больницы")
+@commands.has_any_role(
+    "Заведующие / Зам. Заведующие",
+    "[АБ] Администрация Больницы"
+)
 async def unban_request(ctx, user_id: int, *, reason: str):
     guild = ctx.guild
 
