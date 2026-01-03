@@ -364,7 +364,6 @@ async def unban_request(ctx, user_id: int, *, reason: str):
         color=discord.Color.green()
     ))
 
-
 # ====================== !банлист ======================
 
 @bot.command(name="банлист")
@@ -372,10 +371,20 @@ async def unban_request(ctx, user_id: int, *, reason: str):
 async def banlist(ctx):
     bans = load_bans()
 
+    # ---- ЕСЛИ БАН-ЛИСТ ПУСТ ----
     if not bans:
-        await ctx.send("✅ Бан-лист пуст.")
+        embed = discord.Embed(
+            description=(
+                "**Пользователи в блокировке на сервере Министерства Здравоохранения**\n\n"
+                "**Ник | ID | Дата блокировки | Дата разблокировки | Причина**\n\n"
+                "✅ **В данный момент заблокированных пользователей нет.**"
+            ),
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
         return
 
+    # ---- ЕСЛИ БАНЫ ЕСТЬ ----
     lines = []
     i = 1
 
