@@ -89,11 +89,15 @@ async def give_state_role(ctx, member, main_role_name):
     state_role = discord.utils.get(ctx.guild.roles, name="Государственная фракция")
     civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
 
-    if not main_role or not state_role:
-        await ctx.send("❌ Роль не найдена.")
+    if not main_role:
+        await ctx.send(f"❌ Роль `{main_role_name}` не найдена.")
         return
 
-    if civil in member.roles:
+    if not state_role:
+        await ctx.send("❌ Роль `Государственная фракция` не найдена.")
+        return
+
+    if civil and civil in member.roles:
         await member.remove_roles(civil)
 
     await member.add_roles(main_role, state_role)
@@ -109,35 +113,36 @@ async def give_state_role(ctx, member, main_role_name):
     )
     await ctx.send(embed=embed)
 
-@bot.command(name="правительство")
+@bot.command(name="правительство", aliases=["Правительство"])
 @has_any_role()
 async def government(ctx, member: discord.Member):
     await give_state_role(ctx, member, "Правительство")
 
-@bot.command(name="ФСБ")
+@bot.command(name="фсб", aliases=["ФСБ"])
 @has_any_role()
 async def fsb(ctx, member: discord.Member):
     await give_state_role(ctx, member, "ФСБ")
 
-@bot.command(name="МВД")
+@bot.command(name="мвд", aliases=["МВД"])
 @has_any_role()
 async def mvd(ctx, member: discord.Member):
     await give_state_role(ctx, member, "МВД")
 
-@bot.command(name="МО")
+@bot.command(name="мо", aliases=["МО"])
 @has_any_role()
 async def mo(ctx, member: discord.Member):
     await give_state_role(ctx, member, "МО")
 
-@bot.command(name="ФСИН")
+@bot.command(name="фсин", aliases=["ФСИН"])
 @has_any_role()
 async def fsin(ctx, member: discord.Member):
     await give_state_role(ctx, member, "ФСИН")
 
-@bot.command(name="ТРК")
+@bot.command(name="трк", aliases=["ТРК"])
 @has_any_role()
 async def trk(ctx, member: discord.Member):
-    await give_state_role(ctx, member, '"ТРК "Ритм"')
+    await give_state_role(ctx, member, 'ТРК "Ритм"')
+    
 # ---------- !смена ника ----------
 @bot.command(name="смена")
 @has_any_role()
