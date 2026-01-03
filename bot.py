@@ -177,6 +177,12 @@ async def on_command(ctx):
 
 MSK = timezone(timedelta(hours=3))
 
+from datetime import datetime, timedelta, timezone
+import discord
+import asyncio
+
+MSK = timezone(timedelta(hours=3))
+
 # ====================== !бан ======================
 
 @bot.command(name="бан")
@@ -189,41 +195,40 @@ async def ban_request(ctx, member: discord.Member, days: int, *, reason: str):
         await ctx.send("❌ Роль `Главный врач` не найдена.")
         return
 
-    chief_member = next((m for m in guild.members if chief_role in m.roles), None)
-    if not chief_member:
-        await ctx.send("❌ Пользователь с ролью `Главный врач` не найден.")
+    chief_members = [m for m in guild.members if chief_role in m.roles]
+    if not chief_members:
+        await ctx.send("❌ Пользователи с ролью `Главный врач` не найдены.")
         return
 
-    # 🔔 ОТДЕЛЬНЫЙ ТЕГ
-    await ctx.send(f"⚠️ {chief_member.mention}")
+    chiefs_mentions = " ".join(m.mention for m in chief_members)
 
-    # 📦 EMBED ЗАПРОСА
-    embed = discord.Embed(
+    request_embed = discord.Embed(
         description=(
-            f"Запрос на **блокировку пользователя**\n\n"
-            f"👤 Пользователь: {member}\n"
-            f"🆔 ID пользователя: `{member.id}`\n"
-            f"🗓️ Срок блокировки: {days} дней\n"
-            f"📄 Причина: {reason}\n\n"
-            "✅ — подтвердить блокировку\n"
-            "❌ — отклонить запрос"
+            f"⚠️ {chiefs_mentions}\n\n"
+            f"Попытка забанить пользователя {member.mention}\n"
+            f"🆔 **ID пользователя:** `{member.id}`\n\n"
+            f"🗓️ **Срок бана:** {days} дней\n"
+            f"📄 **Причина:** {reason}\n\n"
+            "Данный запрос ожидает личного подтверждения от **Главного Врача**.\n\n"
+            "✅ — подтвердить бан\n"
+            "❌ — отклонить бан"
         ),
         color=discord.Color.orange()
     )
 
-    msg = await ctx.send(embed=embed)
+    msg = await ctx.send(embed=request_embed)
     await msg.add_reaction("✅")
     await msg.add_reaction("❌")
 
     def check(reaction, user):
         return (
             reaction.message.id == msg.id
-            and user == chief_member
+            and user in chief_members
             and str(reaction.emoji) in ("✅", "❌")
         )
 
     try:
-        reaction, _ = await bot.wait_for("reaction_add", timeout=86400, check=check)
+        reaction, approver = await bot.wait_for("reaction_add", timeout=86400, check=check)
     except asyncio.TimeoutError:
         await msg.edit(
             embed=discord.Embed(
@@ -237,9 +242,10 @@ async def ban_request(ctx, member: discord.Member, days: int, *, reason: str):
         await msg.edit(
             embed=discord.Embed(
                 description=(
-                    "❌ **Блокировка отклонена.**\n\n"
-                    f"🆔 ID пользователя: `{member.id}`\n"
-                    f"Решение принял: {chief_member.mention}"
+                    "❌ **Бан отклонён.**\n\n"
+                    f"👤 Пользователь: {member}\n"
+                    f"🆔 ID: `{member.id}`\n"
+                    f"Решение принял: {approver.mention}"
                 ),
                 color=discord.Color.red()
             )
@@ -249,47 +255,45 @@ async def ban_request(ctx, member: discord.Member, days: int, *, reason: str):
     now = datetime.now(MSK)
     unban_time = now + timedelta(days=days)
 
-    # 📩 ЛИЧНОЕ УВЕДОМЛЕНИЕ
     try:
-        dm_embed = discord.Embed(
-            description=(
-                f"🔴 **Вы заблокированы на {days} дней**\n"
-                f"в Discord сервере фракции **Министерство Здравоохранения**.\n\n"
-                f"🆔 **Ваш ID:** `{member.id}`\n"
-                f"📄 Причина: {reason}\n\n"
-                f"👤 Инициатор: {ctx.author}\n"
-                f"✅ Подтвердил: Главный Врач\n\n"
-                f"📅 Дата блокировки: {now.strftime('%d.%m.%Y')}\n"
-                f"⏰ Время блокировки: {now.strftime('%H:%M')} (МСК)\n\n"
-                f"🟢 Разблокировка: {unban_time.strftime('%d.%m.%Y %H:%M')} (МСК)"
-            ),
-            color=discord.Color.red()
+        await member.send(
+            embed=discord.Embed(
+                description=(
+                    f"🔴 **Вы были заблокированы на {days} дней**\n\n"
+                    f"🆔 **Ваш ID:** `{member.id}`\n"
+                    f"📄 **Причина:** {reason}\n\n"
+                    f"👤 **Инициатор:** {ctx.author}\n"
+                    f"✅ **Подтвердил:** {approver}\n\n"
+                    f"📅 **Дата блокировки:** {now.strftime('%d.%m.%Y')}\n"
+                    f"⏰ **Время:** {now.strftime('%H:%M')} (МСК)\n\n"
+                    f"🟢 **Дата разблокировки:** {unban_time.strftime('%d.%m.%Y %H:%M')} (МСК)"
+                ),
+                color=discord.Color.red()
+            )
         )
-        await member.send(embed=dm_embed)
     except:
         pass
 
     await guild.ban(
         member,
-        reason=f"{reason} | Инициатор: {ctx.author} | Подтвердил: Главный Врач",
+        reason=f"{reason} | Инициатор: {ctx.author} | Подтвердил: {approver}",
         delete_message_days=0
     )
 
     await msg.edit(
         embed=discord.Embed(
             description=(
-                "✅ **Блокировка подтверждена и выполнена.**\n\n"
+                "✅ **Бан подтверждён и выполнен.**\n\n"
                 f"👤 Пользователь: {member}\n"
                 f"🆔 ID: `{member.id}`\n"
                 f"🗓️ Срок: {days} дней\n"
                 f"📄 Причина: {reason}\n\n"
                 f"Инициатор: {ctx.author.mention}\n"
-                f"Подтвердил: {chief_member.mention}"
+                f"Подтвердил: {approver.mention}"
             ),
             color=discord.Color.green()
         )
     )
-
 
 # ====================== !разбан ======================
 
@@ -303,47 +307,45 @@ async def unban_request(ctx, user_id: int, *, reason: str):
         await ctx.send("❌ Роль `Главный врач` не найдена.")
         return
 
-    chief_member = next((m for m in guild.members if chief_role in m.roles), None)
-    if not chief_member:
-        await ctx.send("❌ Пользователь с ролью `Главный врач` не найден.")
+    chief_members = [m for m in guild.members if chief_role in m.roles]
+    if not chief_members:
+        await ctx.send("❌ Пользователи с ролью `Главный врач` не найдены.")
         return
+
+    chiefs_mentions = " ".join(m.mention for m in chief_members)
 
     try:
         ban_entry = await guild.fetch_ban(discord.Object(id=user_id))
         user = ban_entry.user
     except discord.NotFound:
-        await ctx.send("❌ Пользователь с таким ID не найден в бан-листе.")
+        await ctx.send("❌ Пользователь не найден в бан-листе.")
         return
 
-    # 🔔 ОТДЕЛЬНЫЙ ТЕГ
-    await ctx.send(f"⚠️ {chief_member.mention}")
-
-    # 📦 EMBED ЗАПРОСА
-    embed = discord.Embed(
+    request_embed = discord.Embed(
         description=(
-            f"Запрос на **разблокировку пользователя**\n\n"
-            f"👤 Пользователь: {user}\n"
-            f"🆔 ID пользователя: `{user_id}`\n"
-            f"📄 Причина: {reason}\n\n"
+            f"⚠️ {chiefs_mentions}\n\n"
+            f"Запрос на **разбан пользователя** `{user}`\n"
+            f"🆔 **ID пользователя:** `{user_id}`\n\n"
+            f"📄 **Причина:** {reason}\n\n"
             "✅ — подтвердить разбан\n"
-            "❌ — отклонить запрос"
+            "❌ — отклонить разбан"
         ),
         color=discord.Color.orange()
     )
 
-    msg = await ctx.send(embed=embed)
+    msg = await ctx.send(embed=request_embed)
     await msg.add_reaction("✅")
     await msg.add_reaction("❌")
 
     def check(reaction, user_react):
         return (
             reaction.message.id == msg.id
-            and user_react == chief_member
+            and user_react in chief_members
             and str(reaction.emoji) in ("✅", "❌")
         )
 
     try:
-        reaction, _ = await bot.wait_for("reaction_add", timeout=86400, check=check)
+        reaction, approver = await bot.wait_for("reaction_add", timeout=86400, check=check)
     except asyncio.TimeoutError:
         await msg.edit(
             embed=discord.Embed(
@@ -359,7 +361,7 @@ async def unban_request(ctx, user_id: int, *, reason: str):
                 description=(
                     "❌ **Разбан отклонён.**\n\n"
                     f"🆔 ID пользователя: `{user_id}`\n"
-                    f"Решение принял: {chief_member.mention}"
+                    f"Решение принял: {approver.mention}"
                 ),
                 color=discord.Color.red()
             )
@@ -370,26 +372,25 @@ async def unban_request(ctx, user_id: int, *, reason: str):
 
     await guild.unban(
         user,
-        reason=f"{reason} | Инициатор: {ctx.author} | Подтвердил: Главный Врач"
+        reason=f"{reason} | Инициатор: {ctx.author} | Подтвердил: {approver}"
     )
 
-    # 📩 ЛИЧНОЕ УВЕДОМЛЕНИЕ
     try:
-        dm_embed = discord.Embed(
-            description=(
-                "🟢 **Вас разбанили в Discord сервере фракции "
-                "`Министерство Здравоохранения`.**\n\n"
-                f"🆔 **Ваш ID:** `{user_id}`\n"
-                f"📄 Причина: {reason}\n\n"
-                f"👤 Инициатор: {ctx.author}\n"
-                f"✅ Подтвердил: Главный Врач\n\n"
-                f"📅 Дата разблокировки: {now.strftime('%d.%m.%Y')}\n"
-                f"⏰ Время разблокировки: {now.strftime('%H:%M')} (МСК)\n\n"
-                "🔗 **Приглашение на сервер:** https://discord.gg/PASTE_INVITE_HERE"
-            ),
-            color=discord.Color.green()
+        await user.send(
+            embed=discord.Embed(
+                description=(
+                    "🟢 **Вы были разблокированы**\n\n"
+                    f"🆔 **Ваш ID:** `{user_id}`\n"
+                    f"📄 **Причина:** {reason}\n\n"
+                    f"👤 **Инициатор:** {ctx.author}\n"
+                    f"✅ **Подтвердил:** {approver}\n\n"
+                    f"📅 **Дата:** {now.strftime('%d.%m.%Y')}\n"
+                    f"⏰ **Время:** {now.strftime('%H:%M')} (МСК)\n\n"
+                    "🔗 **Приглашение на сервер:** https://discord.gg/Ny4Vs6vEjd"
+                ),
+                color=discord.Color.green()
+            )
         )
-        await user.send(embed=dm_embed)
     except:
         pass
 
@@ -401,7 +402,7 @@ async def unban_request(ctx, user_id: int, *, reason: str):
                 f"🆔 ID: `{user_id}`\n"
                 f"📄 Причина: {reason}\n\n"
                 f"Инициатор: {ctx.author.mention}\n"
-                f"Подтвердил: {chief_member.mention}"
+                f"Подтвердил: {approver.mention}"
             ),
             color=discord.Color.green()
         )
