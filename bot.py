@@ -295,10 +295,16 @@ async def unban_request(ctx, user_id: int, *, reason: str):
         return
 
     try:
-        banned_user = await guild.fetch_ban(discord.Object(id=user_id))
-        user = banned_user.user
+        banned_entry = await guild.fetch_ban(discord.Object(id=user_id))
     except discord.NotFound:
         await ctx.send("❌ Пользователь с таким ID не найден в бан-листе.")
+        return
+
+    # ⚠️ ВАЖНО: получаем пользователя НАПРЯМУЮ
+    try:
+        user = await bot.fetch_user(user_id)
+    except:
+        await ctx.send("❌ Не удалось получить пользователя по ID.")
         return
 
     request_embed = discord.Embed(
@@ -327,15 +333,11 @@ async def unban_request(ctx, user_id: int, *, reason: str):
         )
 
     try:
-        reaction, user_react = await bot.wait_for(
-            "reaction_add",
-            timeout=86400,
-            check=check
-        )
+        reaction, _ = await bot.wait_for("reaction_add", timeout=86400, check=check)
     except asyncio.TimeoutError:
         await msg.edit(
             embed=discord.Embed(
-                description="⌛ Запрос на разбан был автоматически отменён (истекло время ожидания).",
+                description="⌛ Запрос на разбан был автоматически отменён.",
                 color=discord.Color.red()
             )
         )
@@ -361,7 +363,7 @@ async def unban_request(ctx, user_id: int, *, reason: str):
         reason=f"{reason} | Инициатор: {ctx.author} | Подтвердил: Главный Врач"
     )
 
-    # ЛИЧНОЕ УВЕДОМЛЕНИЕ ПОЛЬЗОВАТЕЛЮ
+    # ================= ЛИЧНОЕ УВЕДОМЛЕНИЕ =================
     try:
         dm_embed = discord.Embed(
             description=(
@@ -374,13 +376,13 @@ async def unban_request(ctx, user_id: int, *, reason: str):
                 f"📅 **Дата разблокировки:** {now.strftime('%d.%m.%Y')}\n"
                 f"⏰ **Время разблокировки:** {now.strftime('%H:%M')} (МСК)\n\n"
                 "🟢 **Теперь Вы можете вновь пользоваться данным Discord-сервером.**\n"
-                "🔗 **Приглашение на сервер:** https://discord.gg/Ny4Vs6vEjd"
+                "🔗 **Приглашение:** https://discord.gg/Ny4Vs6vEjd"
             ),
             color=discord.Color.green()
         )
         await user.send(embed=dm_embed)
     except:
-        pass
+        pass  # если ЛС закрыты — Discord не даст отправить
 
     await msg.edit(
         embed=discord.Embed(
@@ -395,7 +397,6 @@ async def unban_request(ctx, user_id: int, *, reason: str):
             color=discord.Color.green()
         )
     )
-
 
 # =====================================================
 # ========== НОВЫЕ КОМАНДЫ ГОС ФРАКЦИЙ =================
