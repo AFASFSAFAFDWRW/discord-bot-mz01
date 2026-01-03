@@ -125,6 +125,33 @@ async def mute(ctx, member: discord.Member, minutes: int, *, reason: str):
 
     if mute_role in member.roles:
         await member.remove_roles(mute_role)
+@bot.command(name="снять")
+@has_any_role()
+async def unmute(ctx, action: str, member: discord.Member):
+    if action.lower() != "мут":
+        return
+
+    mute_role = discord.utils.get(ctx.guild.roles, name="Mute")
+
+    if not mute_role:
+        await ctx.send("❌ Роль `Mute` не найдена.")
+        return
+
+    if mute_role not in member.roles:
+        await ctx.send("❌ Пользователь не находится в муте.")
+        return
+
+    await member.remove_roles(mute_role)
+
+    embed = discord.Embed(
+        description=(
+            "📝 **Лог: Снятие мута**\n\n"
+            f"👤 Пользователь: {member.mention}\n\n"
+            f"Исполнитель: {ctx.author.mention}"
+        ),
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed)
 
 # ---------- RUN ----------
 bot.run(os.getenv("TOKEN"))
