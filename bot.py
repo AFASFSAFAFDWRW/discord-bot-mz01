@@ -126,7 +126,7 @@ async def fsin(ctx, member: discord.Member):
 @bot.command(name="ТРК")
 @has_any_role()
 async def trk(ctx, member: discord.Member):
-    await give_role(ctx, member, "ТРК «Ритм»", "Выдача роли ТРК «Ритм»")
+    await give_role(ctx, member, "ТРК "Ритм"", "Выдача роли ТРК "Ритм"")
 
 # ---------- !смена ника ----------
 @bot.command(name="смена")
