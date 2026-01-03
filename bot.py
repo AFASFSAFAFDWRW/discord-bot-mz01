@@ -265,6 +265,33 @@ async def annul(ctx, action: str, member: discord.Member):
         color=discord.Color.orange()
     ))
 
+# ---------- !чистка ----------
+@bot.command(name="чистка")
+@has_any_role()
+async def clear_chat(ctx, amount: int):
+    # уведомление о начале
+    start_msg = await ctx.send(
+        f"⏳ Ожидайте. Начал очистку **{amount}** строк в данном чате."
+    )
+
+    # задержка 5 секунд
+    await asyncio.sleep(5)
+
+    # удаляем сообщения (amount + сообщение команды)
+    deleted = await ctx.channel.purge(limit=amount + 1)
+
+    # удаляем сообщение "ожидайте"
+    try:
+        await start_msg.delete()
+    except:
+        pass
+
+    # итоговое уведомление
+    await ctx.send(
+        f"✅ По запросу от {ctx.author.mention} было очищено **{len(deleted) - 1}** строк из данного чата."
+    )
+
+
 # ---------- !мут ----------
 @bot.command(name="мут")
 @has_any_role()
