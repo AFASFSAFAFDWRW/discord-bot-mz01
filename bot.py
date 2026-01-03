@@ -80,54 +80,64 @@ async def mz(ctx, member: discord.Member):
         color=discord.Color.green()
     ))
 
-# ---------- ГОС РОЛИ ----------
-async def give_role(ctx, member, role_name, title):
-    role = discord.utils.get(ctx.guild.roles, name=role_name)
-    if not role:
-        await ctx.send(f"❌ Роль `{role_name}` не найдена.")
+# =====================================================
+# ========== НОВЫЕ КОМАНДЫ ГОС ФРАКЦИЙ =================
+# =====================================================
+
+async def give_state_role(ctx, member, main_role_name):
+    main_role = discord.utils.get(ctx.guild.roles, name=main_role_name)
+    state_role = discord.utils.get(ctx.guild.roles, name="Государственная фракция")
+    civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
+
+    if not main_role or not state_role:
+        await ctx.send("❌ Роль не найдена.")
         return
 
-    await member.add_roles(role)
+    if civil in member.roles:
+        await member.remove_roles(civil)
 
-    await ctx.send(embed=discord.Embed(
+    await member.add_roles(main_role, state_role)
+
+    embed = discord.Embed(
         description=(
-            f"📝 **Лог: {title}**\n\n"
+            "📝 **Лог: Добавление ролей**\n\n"
             f"👤 Пользователь: {member.mention}\n"
-            f"Исполнитель: {ctx.author.mention}"
+            f"📌 Роли: {main_role.mention} {state_role.mention}\n\n"
+            f"Выдал роли: {ctx.author.mention}"
         ),
         color=discord.Color.green()
-    ))
+    )
+    await ctx.send(embed=embed)
 
 @bot.command(name="правительство")
 @has_any_role()
-async def gov(ctx, member: discord.Member):
-    await give_role(ctx, member, "Правительство", "Выдача роли Правительство")
+async def government(ctx, member: discord.Member):
+    await give_state_role(ctx, member, "Правительство")
 
 @bot.command(name="ФСБ")
 @has_any_role()
 async def fsb(ctx, member: discord.Member):
-    await give_role(ctx, member, "ФСБ", "Выдача роли ФСБ")
+    await give_state_role(ctx, member, "ФСБ")
 
 @bot.command(name="МВД")
 @has_any_role()
 async def mvd(ctx, member: discord.Member):
-    await give_role(ctx, member, "МВД", "Выдача роли МВД")
+    await give_state_role(ctx, member, "МВД")
 
 @bot.command(name="МО")
 @has_any_role()
 async def mo(ctx, member: discord.Member):
-    await give_role(ctx, member, "МО", "Выдача роли МО")
+    await give_state_role(ctx, member, "МО")
 
 @bot.command(name="ФСИН")
 @has_any_role()
 async def fsin(ctx, member: discord.Member):
-    await give_role(ctx, member, "ФСИН", "Выдача роли ФСИН")
+    await give_state_role(ctx, member, "ФСИН")
 
 @bot.command(name="ТРК")
 @has_any_role()
 async def trk(ctx, member: discord.Member):
-    await give_role(ctx, member, "ТРК "Ритм"", "Выдача роли ТРК "Ритм"")
-
+    await give_state_role(ctx, member, 'ТРК "Ритм"')
 # ---------- !смена ника ----------
 @bot.command(name="смена")
 @has_any_role()
