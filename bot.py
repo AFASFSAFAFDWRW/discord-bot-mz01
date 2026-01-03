@@ -1,19 +1,22 @@
 import discord
 from discord.ext import commands
 from datetime import datetime, timezone, timedelta
-import aiohttp
 import os
 
-# ================== INTENTS ==================
+# ---------- INTENTS ----------
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ================== КОНСТАНТЫ ==================
+# ---------- КОНСТАНТЫ ----------
 CIVIL_ROLE = "Гражданский"
+FRACTION_NAME = "Министерство Здравоохранения"
 DOCS_ROLE = "[-] Документы не утверждены"
+
+LOG_MZ_CHANNEL = "документооборот-прибывших-граждан"
+LOG_FIRE_CHANNEL = "документооборот-уволенных-граждан"
 
 MZ_ROLES = [
     "Министерство Здравоохранения",
@@ -34,22 +37,7 @@ BLOCK_FIRE_ROLES = [
     "Переаттестация"
 ]
 
-# ================== WEBHOOK URL ==================
-WEBHOOK_MAIN = os.getenv("WEBHOOK_MAIN")
-WEBHOOK_MZ_LOG = os.getenv("WEBHOOK_MZ_LOG")
-WEBHOOK_FIRE_LOG = os.getenv("WEBHOOK_FIRE_LOG")
-
-# ================== WEBHOOK SENDER ==================
-async def send_webhook(url, *, content=None, embed=None):
-    async with aiohttp.ClientSession() as session:
-        webhook = discord.Webhook.from_url(url, session=session)
-        await webhook.send(
-            content=content,
-            embed=embed,
-            username="Государственный помощник"
-        )
-
-# ================== CHECK ==================
+# ---------- CHECK ----------
 def has_any_role():
     async def predicate(ctx):
         return any(
@@ -61,7 +49,7 @@ def has_any_role():
         )
     return commands.check(predicate)
 
-# ================== EVENTS ==================
+# ---------- EVENTS ----------
 @bot.event
 async def on_ready():
     print(f"Бот запущен как {bot.user}")
@@ -79,23 +67,22 @@ async def on_command_error(ctx, error):
         return
     raise error
 
-# ================== КОМАНДЫ ==================
+# ---------- КОМАНДЫ ----------
 @bot.command(name="команды")
 async def commands_list(ctx):
     embed = discord.Embed(
         title="📌 Команды Государственного помощника",
         description=(
-            "**!МЗ @пользователь** — зачисление во фракцию\n\n"
+            "**!МЗ @пользователь** — зачисляет пользователя во фракцию\n\n"
             "**!смена ника @пользователь новый_ник** — смена ника\n\n"
             "**!уволить @пользователь причина** — увольнение\n\n"
             "**!аннулировать роли @пользователь** — аннулирование ролей"
         ),
         color=discord.Color.blue()
     )
+    await ctx.send(embed=embed)
 
-    await send_webhook(WEBHOOK_MAIN, embed=embed)
-
-# ================== МЗ ==================
+# ---------- МЗ ----------
 @bot.command(name="МЗ")
 @has_any_role()
 async def mz(ctx, member: discord.Member):
@@ -104,41 +91,42 @@ async def mz(ctx, member: discord.Member):
     for name in MZ_ROLES:
         role = discord.utils.get(ctx.guild.roles, name=name)
         if not role:
-            await send_webhook(WEBHOOK_MAIN, content=f"❌ Роль `{name}` не найдена.")
+            await ctx.send(f"❌ Роль `{name}` не найдена.")
             return
         roles_to_add.append(role)
 
     civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
-    if civil in member.roles:
+    if civil and civil in member.roles:
         await member.remove_roles(civil)
 
     await member.add_roles(*roles_to_add)
 
     embed_main = discord.Embed(
         description=(
-            "📝 **Лог: Зачисление во фракцию**\n\n"
-            f"👤 {member.mention}\n"
-            f"Роли: {' '.join(r.mention for r in roles_to_add)}\n\n"
-            f"**Исполнитель:** {ctx.author.mention}"
+            "📝 **Лог: Добавление ролей**\n\n"
+            f"👤 Пользователь: {member.mention}\n"
+            f"🎖 Роли: {' '.join(r.mention for r in roles_to_add)}\n\n"
+            f"Исполнитель: {ctx.author.mention}"
         ),
         color=discord.Color.green()
     )
+    await ctx.send(embed=embed_main)
 
-    embed_log = discord.Embed(
-        description=(
-            "📄 **Документооборот**\n\n"
-            f"Сотрудник: {member.mention}\n"
-            f"Ник: {member.display_name}\n"
-            f"ID: {member.id}\n"
-            f"Статус: Зачислен"
-        ),
-        color=discord.Color.blue()
-    )
+    log_channel = discord.utils.get(ctx.guild.text_channels, name=LOG_MZ_CHANNEL)
+    if log_channel:
+        embed_log = discord.Embed(
+            description=(
+                "📄 **Документооборот**\n\n"
+                f"Сотрудник: {member.mention}\n"
+                f"Ник: {member.display_name}\n"
+                f"ID: {member.id}\n"
+                f"Статус: Зачислен"
+            ),
+            color=discord.Color.blue()
+        )
+        await log_channel.send(embed=embed_log)
 
-    await send_webhook(WEBHOOK_MAIN, embed=embed_main)
-    await send_webhook(WEBHOOK_MZ_LOG, embed=embed_log)
-
-# ================== СМЕНА НИКА ==================
+# ---------- СМЕНА НИКА ----------
 @bot.command(name="смена")
 @has_any_role()
 async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str):
@@ -160,10 +148,10 @@ async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str
         ),
         color=discord.Color.green()
     )
+    embed.set_footer(text=f"Исполнитель: {ctx.author.display_name}")
+    await ctx.send(embed=embed)
 
-    await send_webhook(WEBHOOK_MAIN, embed=embed)
-
-# ================== УВОЛИТЬ ==================
+# ---------- УВОЛИТЬ ----------
 @bot.command(name="уволить")
 @has_any_role()
 async def fire(ctx, member: discord.Member, *, reason: str):
@@ -171,17 +159,17 @@ async def fire(ctx, member: discord.Member, *, reason: str):
     role_names = [r.name for r in member.roles]
 
     if DOCS_ROLE in role_names:
-        await send_webhook(WEBHOOK_MAIN, content="🚫 Нет утверждённых документов.")
+        await ctx.send("🚫 Невозможно: отсутствует документация.")
         return
 
     if any(r in BLOCK_FIRE_ROLES for r in role_names):
-        await send_webhook(WEBHOOK_MAIN, content="🚫 Активные дисциплинарные взыскания.")
+        await ctx.send("🚫 Невозможно: активные дисциплинарные взыскания.")
         return
 
     civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
     await member.edit(roles=[civil])
 
-    embed_main = discord.Embed(
+    embed_chat = discord.Embed(
         description=(
             "📝 **Лог: Увольнение**\n\n"
             f"👤 {member.mention}\n"
@@ -191,22 +179,25 @@ async def fire(ctx, member: discord.Member, *, reason: str):
         ),
         color=discord.Color.red()
     )
+    embed_chat.set_footer(text=f"Исполнитель: {ctx.author.display_name}")
+    await ctx.send(embed=embed_chat)
 
-    embed_log = discord.Embed(
-        description=(
-            "📄 **Документооборот (увольнение)**\n\n"
-            f"Сотрудник: {member.mention}\n"
-            f"ID: {member.id}\n"
-            f"Причина: {reason}\n\n"
-            f"Исполнитель: {ctx.author.display_name}"
-        ),
-        color=discord.Color.dark_red()
-    )
+    log_channel = discord.utils.get(ctx.guild.text_channels, name=LOG_FIRE_CHANNEL)
+    if log_channel:
+        embed_log = discord.Embed(
+            description=(
+                "📄 **Документооборот (увольнение)**\n\n"
+                f"Сотрудник: {member.mention}\n"
+                f"Ник: {member.display_name}\n"
+                f"ID: {member.id}\n"
+                f"Причина: {reason}\n\n"
+                f"Исполнитель: {ctx.author.display_name}"
+            ),
+            color=discord.Color.dark_red()
+        )
+        await log_channel.send(embed=embed_log)
 
-    await send_webhook(WEBHOOK_MAIN, embed=embed_main)
-    await send_webhook(WEBHOOK_FIRE_LOG, embed=embed_log)
-
-# ================== АННУЛИРОВАТЬ ==================
+# ---------- АННУЛИРОВАТЬ ----------
 @bot.command(name="аннулировать")
 @has_any_role()
 async def annul(ctx, action: str, member: discord.Member):
@@ -225,8 +216,8 @@ async def annul(ctx, action: str, member: discord.Member):
         ),
         color=discord.Color.orange()
     )
+    embed.set_footer(text=f"Исполнитель: {ctx.author.display_name}")
+    await ctx.send(embed=embed)
 
-    await send_webhook(WEBHOOK_MAIN, embed=embed)
-
-# ================== RUN ==================
+# ---------- RUN ----------
 bot.run(os.getenv("TOKEN"))
