@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from datetime import datetime, timezone, timedelta
 import os
-import asyncio  # ← ДОБАВЛЕНО ДЛЯ !мут
+import asyncio
 
 # ---------- INTENTS ----------
 intents = discord.Intents.default()
@@ -84,48 +84,117 @@ async def commands_list(ctx):
             "**!смена ника @пользователь новый_ник** — смена ника\n\n"
             "**!уволить @пользователь причина** — увольнение\n\n"
             "**!аннулировать роли @пользователь** — аннулирование ролей\n\n"
-            "**!мут @пользователь минуты причина** — мут пользователя"
+            "**!мут @пользователь минуты причина** — мут\n\n"
+            "**!снять мут @пользователь причина** — снять мут"
         ),
         color=discord.Color.blue()
     )
     await ctx.send(embed=embed)
 
-# =====================================================
-# ==================== МУТ ============================
-# =====================================================
+# ---------- МЗ ----------
+@bot.command(name="МЗ")
+@has_any_role()
+async def mz(ctx, member: discord.Member):
+    roles_to_add = []
+    for name in MZ_ROLES:
+        role = discord.utils.get(ctx.guild.roles, name=name)
+        if not role:
+            await ctx.send(f"❌ Роль `{name}` не найдена.")
+            return
+        roles_to_add.append(role)
 
+    civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
+    if civil and civil in member.roles:
+        await member.remove_roles(civil)
+
+    await member.add_roles(*roles_to_add)
+
+    await ctx.send(embed=discord.Embed(
+        description=(
+            "📝 **Лог: Добавление ролей**\n\n"
+            f"👤 Пользователь: {member.mention}\n"
+            f"🎖 Роли: {' '.join(r.mention for r in roles_to_add)}\n\n"
+            f"Исполнитель: {ctx.author.mention}"
+        ),
+        color=discord.Color.green()
+    ))
+
+# ---------- СМЕНА НИКА ----------
+@bot.command(name="смена")
+@has_any_role()
+async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str):
+    if action.lower() != "ника":
+        return
+
+    old_nick = member.display_name
+    await member.edit(nick=new_nick)
+
+    await ctx.send(embed=discord.Embed(
+        description=(
+            "📝 **Лог: Смена ника**\n\n"
+            f"👤 {member.mention}\n"
+            f"Старый: {old_nick}\n"
+            f"Новый: {new_nick}"
+        ),
+        color=discord.Color.green()
+    ))
+
+# ---------- УВОЛИТЬ ----------
+@bot.command(name="уволить")
+@has_any_role()
+async def fire(ctx, member: discord.Member, *, reason: str):
+    civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
+    await member.edit(roles=[civil])
+
+    await ctx.send(embed=discord.Embed(
+        description=(
+            "📝 **Лог: Увольнение**\n\n"
+            f"👤 {member.mention}\n"
+            f"Причина: {reason}"
+        ),
+        color=discord.Color.red()
+    ))
+
+# ---------- АННУЛИРОВАТЬ ----------
+@bot.command(name="аннулировать")
+@has_any_role()
+async def annul(ctx, action: str, member: discord.Member):
+    if action.lower() != "роли":
+        return
+
+    civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
+    await member.edit(roles=[civil])
+
+    await ctx.send(embed=discord.Embed(
+        description=(
+            "📝 **Лог: Аннулирование ролей**\n\n"
+            f"👤 {member.mention}"
+        ),
+        color=discord.Color.orange()
+    ))
+
+# ---------- МУТ ----------
 @bot.command(name="мут")
 @has_any_role()
 async def mute(ctx, member: discord.Member, minutes: int, *, reason: str):
     mute_role = discord.utils.get(ctx.guild.roles, name="Mute")
-
-    if not mute_role:
-        await ctx.send("❌ Роль `Mute` не найдена.")
-        return
-
-    if mute_role in member.roles:
-        await ctx.send("❌ Пользователь уже в муте.")
-        return
-
     await member.add_roles(mute_role)
 
-    embed = discord.Embed(
+    await ctx.send(embed=discord.Embed(
         description=(
-            "📝 **Лог: Мут пользователя**\n\n"
-            f"👤 Пользователь: {member.mention}\n"
-            f"⏳ Время: {minutes} мин.\n"
-            f"📄 Причина: {reason}\n\n"
-            f"Исполнитель: {ctx.author.mention}"
+            "📝 **Лог: Мут**\n\n"
+            f"👤 {member.mention}\n"
+            f"⏳ {minutes} мин\n"
+            f"📄 {reason}"
         ),
         color=discord.Color.orange()
-    )
-    await ctx.send(embed=embed)
+    ))
 
     await asyncio.sleep(minutes * 60)
-
     if mute_role in member.roles:
         await member.remove_roles(mute_role)
 
+# ---------- СНЯТЬ МУТ ----------
 @bot.command(name="снять")
 @has_any_role()
 async def unmute(ctx, action: str, member: discord.Member, *, reason: str):
@@ -133,27 +202,16 @@ async def unmute(ctx, action: str, member: discord.Member, *, reason: str):
         return
 
     mute_role = discord.utils.get(ctx.guild.roles, name="Mute")
-
-    if not mute_role:
-        await ctx.send("❌ Роль `Mute` не найдена.")
-        return
-
-    if mute_role not in member.roles:
-        await ctx.send("❌ Пользователь не находится в муте.")
-        return
-
     await member.remove_roles(mute_role)
 
-    embed = discord.Embed(
+    await ctx.send(embed=discord.Embed(
         description=(
             "📝 **Лог: Снятие мута**\n\n"
-            f"👤 Пользователь: {member.mention}\n"
-            f"📄 Причина: {reason}\n"
-            f"Исполнитель: {ctx.author.mention}"
+            f"👤 {member.mention}\n"
+            f"📄 {reason}"
         ),
         color=discord.Color.green()
-    )
-    await ctx.send(embed=embed)
+    ))
 
 # ---------- RUN ----------
 bot.run(os.getenv("TOKEN"))
