@@ -406,7 +406,50 @@ async def unban_request(ctx, user_id: int, *, reason: str):
             color=discord.Color.green()
         )
     )
-    
+
+# ====================== !банлист ======================
+
+@bot.command(name="банлист")
+@has_any_role()
+async def banlist(ctx):
+    guild = ctx.guild
+
+    bans = [entry async for entry in guild.bans()]
+
+    if not bans:
+        await ctx.send(
+            embed=discord.Embed(
+                description=(
+                    "📄 **Бан-лист Discord сервера "
+                    "Министерства Здравоохранения**\n\n"
+                    "🚫 Заблокированных пользователей нет."
+                ),
+                color=discord.Color.green()
+            )
+        )
+        return
+
+    lines = []
+    for i, ban in enumerate(bans, start=1):
+        user = ban.user
+        reason = ban.reason or "Не указана"
+
+        lines.append(
+            f"**{i}.** {user} | `{user.id}` | — | — | {reason}"
+        )
+
+    embed = discord.Embed(
+        title="📄 Бан-лист Discord сервера Министерства Здравоохранения",
+        description=(
+            "**Формат:**\n"
+            "Ник | ID пользователя | Дата блокировки | Дата разблокировки | Причина\n\n"
+            + "\n".join(lines)
+        ),
+        color=discord.Color.orange()
+    )
+
+    await ctx.send(embed=embed)
+
 # ================= кмд командыы =====================
 
 @bot.command(name="команды")
