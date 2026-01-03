@@ -53,6 +53,38 @@ async def on_command(ctx):
     except discord.Forbidden:
         pass
 
+# ---------- КОМАНДЫ / СПРАВКА ----------
+@bot.command(name="команды")
+async def commands_list(ctx):
+    embed = discord.Embed(
+        title="📌 Команды Государственного помощника",
+        description=(
+            "**!предупредить @пользователь причина** — "
+            "выдаёт сотруднику устное предупреждение.\n\n"
+
+            "**!МЗ @пользователь** — "
+            "выдаёт роль фракции «Министерство Здравоохранения».\n\n"
+
+            "**!смена ника @пользователь новый_ник** — "
+            "изменяет отображаемый ник сотрудника.\n\n"
+
+            "**!уволить @пользователь причина** — "
+            "увольняет сотрудника из фракции, снимая все роли и оставляя роль «Гражданский». "
+            "Недоступно при активных дисциплинарных взысканиях.\n\n"
+
+            "**!аннулировать роли @пользователь** — "
+            "аннулирует все роли пользователя и оставляет только роль «Гражданский»."
+        ),
+        color=discord.Color.blue()
+    )
+
+    embed.set_footer(
+        text="Система управления персоналом",
+        icon_url=bot.user.avatar.url if bot.user.avatar else None
+    )
+
+    await ctx.send(embed=embed)
+
 # ---------- ПРЕДУПРЕЖДЕНИЕ ----------
 @bot.command()
 @commands.has_role(ALLOWED_ROLE)
@@ -136,108 +168,72 @@ async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str
 @bot.command(name="уволить")
 @has_any_role()
 async def fire(ctx, member: discord.Member, *, reason: str):
-
     member_role_names = [role.name for role in member.roles]
 
-    # --- ДОКУМЕНТЫ НЕ УТВЕРЖДЕНЫ ---
     if DOCS_ROLE in member_role_names:
-        embed = discord.Embed(
-            description=(
-                "🚫 **Данное действие невозможно.**\n\n"
-                f"У сотрудника **{member.display_name}** отсутствует заполненная документация."
-            ),
-            color=discord.Color.red()
+        await ctx.send(
+            embed=discord.Embed(
+                description=(
+                    "🚫 **Данное действие невозможно.**\n\n"
+                    f"У сотрудника **{member.display_name}** отсутствует заполненная документация."
+                ),
+                color=discord.Color.red()
+            )
         )
-        await ctx.send(embed=embed)
         return
 
-    # --- ДРУГИЕ ДИСЦИПЛИНАРНЫЕ ВЗЫСКАНИЯ ---
-    active_blocks = [
-        role for role in member_role_names
-        if role in BLOCK_FIRE_ROLES
-    ]
-
+    active_blocks = [r for r in member_role_names if r in BLOCK_FIRE_ROLES]
     if active_blocks:
-        embed = discord.Embed(
-            description=(
-                "🚫 **Данное действие невозможно.**\n\n"
-                f"У сотрудника **{member.display_name}** присутствует активное дисциплинарное взыскание.\n\n"
-                "**Дисциплинарное взыскание в виде:**\n"
-                + "\n".join(f"- {r}" for r in active_blocks) +
-                "\n\nДля осуществления данного действия, сотруднику необходимо снять все активные наказания."
-            ),
-            color=discord.Color.red()
+        await ctx.send(
+            embed=discord.Embed(
+                description=(
+                    "🚫 **Данное действие невозможно.**\n\n"
+                    f"У сотрудника **{member.display_name}** присутствует активное дисциплинарное взыскание.\n\n"
+                    "**Взыскание:**\n" +
+                    "\n".join(f"- {r}" for r in active_blocks)
+                ),
+                color=discord.Color.red()
+            )
         )
-        await ctx.send(embed=embed)
         return
 
-    # --- УВОЛЬНЕНИЕ ---
     civil_role = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
-    if not civil_role:
-        await ctx.send("❌ Роль 'Гражданский' не найдена.")
-        return
-
     await member.edit(roles=[civil_role])
 
-    embed = discord.Embed(
-        description=(
-            "📝 **Лог: Увольнение**\n\n"
-            f"👤 {member.mention}\n"
-            f"Ник: {member.display_name}\n"
-            f"ID: {member.id}\n"
-            f"📄 Статус: Уволен\n"
-            f"📝 Причина: {reason}"
-        ),
-        color=discord.Color.red()
-    )
-
-    embed.set_footer(
-        text=f"Исполнитель: {ctx.author.display_name}",
-        icon_url=ctx.author.avatar.url if ctx.author.avatar else None
-    )
-
-    await ctx.send(embed=embed)
-
-    try:
-        await member.send(
-            f"Вы были уволены из фракции **{FRACTION_NAME}**.\n"
-            f"Исполнитель: {ctx.author.display_name}\n"
-            f"Причина: {reason}"
+    await ctx.send(
+        embed=discord.Embed(
+            description=(
+                "📝 **Лог: Увольнение**\n\n"
+                f"👤 {member.mention}\n"
+                f"Ник: {member.display_name}\n"
+                f"ID: {member.id}\n"
+                f"Причина: {reason}"
+            ),
+            color=discord.Color.red()
         )
-    except discord.Forbidden:
-        pass
+    )
 
 # ---------- АННУЛИРОВАТЬ ----------
 @bot.command(name="аннулировать")
 @has_any_role()
 async def annul(ctx, action: str, member: discord.Member):
     if action.lower() != "роли":
-        await ctx.send("❌ Использование: !аннулировать роли @пользователь")
         return
 
     civil_role = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
-    if not civil_role:
-        await ctx.send("❌ Роль 'Гражданский' не найдена.")
-        return
-
     await member.edit(roles=[civil_role])
 
-    embed = discord.Embed(
-        description=(
-            "📝 **Лог: Аннулирование ролей**\n\n"
-            f"👤 {member.mention}\n"
-            f"Ник: {member.display_name}\n"
-            f"ID: {member.id}"
-        ),
-        color=discord.Color.orange()
+    await ctx.send(
+        embed=discord.Embed(
+            description=(
+                "📝 **Лог: Аннулирование ролей**\n\n"
+                f"👤 {member.mention}\n"
+                f"Ник: {member.display_name}\n"
+                f"ID: {member.id}"
+            ),
+            color=discord.Color.orange()
+        )
     )
-
-    embed.set_footer(
-        text=f"Исполнитель: {ctx.author.display_name}",
-        icon_url=ctx.author.avatar.url if ctx.author.avatar else None
-    )
-
-    await ctx.send(embed=embed)
 
 # ---------- RUN ----------
 bot.run(os.getenv("TOKEN"))
