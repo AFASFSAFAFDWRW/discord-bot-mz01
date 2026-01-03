@@ -3,6 +3,15 @@ from discord.ext import commands
 from datetime import datetime, timezone, timedelta
 import os
 
+# ---------- CHECK ----------
+def has_any_role():
+    async def predicate(ctx):
+        return any(
+            role.name in ("[АБ] Администрация Больницы", "Заведующие / Зам. Заведующие")
+            for role in ctx.author.roles
+        )
+    return commands.check(predicate)
+
 # ---------- INTENTS ----------
 intents = discord.Intents.default()
 intents.message_content = True
