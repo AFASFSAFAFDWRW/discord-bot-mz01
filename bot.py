@@ -274,7 +274,7 @@ async def ban_request(ctx, member: discord.Member, days: int, *, reason: str):
             color=discord.Color.green()
         )
     )
-================== !разбан =========================
+# ================== !разбан =========================
 from datetime import datetime, timedelta, timezone
 
 MSK = timezone(timedelta(hours=3))
