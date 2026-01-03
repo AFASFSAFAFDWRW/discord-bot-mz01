@@ -17,6 +17,17 @@ MZ_ROLE = "Министерство Здравоохранения"
 CIVIL_ROLE = "Гражданский"
 FRACTION_NAME = "Министерство Здравоохранения"
 
+BLOCK_FIRE_ROLES = [
+    "[-] Документы не утверждены",
+    "Запрет на увольнение",
+    "Устное предупреждение",
+    "Выговор 1/2",
+    "Выговор 2/2",
+    "Строгий выговор 1/2",
+    "Строгий выговор 2/2",
+    "Переаттестация"
+]
+
 # ---------- CHECK ----------
 def has_any_role():
     async def predicate(ctx):
@@ -34,12 +45,19 @@ def has_any_role():
 async def on_ready():
     print(f"Бот запущен как {bot.user}")
 
+# ---------- AUTO DELETE COMMAND ----------
+@bot.event
+async def on_command(ctx):
+    try:
+        await ctx.message.delete()
+    except discord.Forbidden:
+        pass
+
 # ---------- ПРЕДУПРЕЖДЕНИЕ ----------
 @bot.command()
 @commands.has_role(ALLOWED_ROLE)
 async def предупредить(ctx, member: discord.Member, *, reason: str):
     role = discord.utils.get(ctx.guild.roles, name=WARNING_ROLE)
-
     if not role:
         await ctx.send("❌ Роль 'Устное предупреждение' не найдена.")
         return
@@ -54,11 +72,6 @@ async def предупредить(ctx, member: discord.Member, *, reason: str):
 @bot.command(name="МЗ")
 @has_any_role()
 async def mz(ctx, member: discord.Member):
-    try:
-        await ctx.message.delete()
-    except discord.Forbidden:
-        pass
-
     role = discord.utils.get(ctx.guild.roles, name=MZ_ROLE)
     if not role:
         await ctx.send("❌ Роль МЗ не найдена.")
@@ -122,13 +135,26 @@ async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str
 @bot.command(name="уволить")
 @has_any_role()
 async def fire(ctx, member: discord.Member, *, reason: str):
-    try:
-        await ctx.message.delete()
-    except discord.Forbidden:
-        pass
+    active_blocks = [
+        role.name for role in member.roles
+        if role.name in BLOCK_FIRE_ROLES
+    ]
 
-    guild = ctx.guild
-    civil_role = discord.utils.get(guild.roles, name=CIVIL_ROLE)
+    if active_blocks:
+        embed = discord.Embed(
+            description=(
+                "🚫 **Данное действие невозможно.**\n\n"
+                f"У сотрудника **{member.display_name}** присутствует активное дисциплинарное взыскание.\n\n"
+                "**Дисциплинарное взыскание в виде:**\n"
+                + "\n".join(f"- {r}" for r in active_blocks) +
+                "\n\nДля осуществления данного действия, сотруднику необходимо снять все активные наказания."
+            ),
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+        return
+
+    civil_role = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
     if not civil_role:
         await ctx.send("❌ Роль 'Гражданский' не найдена.")
         return
@@ -156,7 +182,7 @@ async def fire(ctx, member: discord.Member, *, reason: str):
 
     try:
         await member.send(
-            f"Вы уволены из фракции **{FRACTION_NAME}**.\n"
+            f"Вы были уволены из фракции **{FRACTION_NAME}**.\n"
             f"Исполнитель: {ctx.author.display_name}\n"
             f"Причина: {reason}"
         )
@@ -171,13 +197,7 @@ async def annul(ctx, action: str, member: discord.Member):
         await ctx.send("❌ Использование: !аннулировать роли @пользователь")
         return
 
-    try:
-        await ctx.message.delete()
-    except discord.Forbidden:
-        pass
-
-    guild = ctx.guild
-    civil_role = discord.utils.get(guild.roles, name=CIVIL_ROLE)
+    civil_role = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
     if not civil_role:
         await ctx.send("❌ Роль 'Гражданский' не найдена.")
         return
