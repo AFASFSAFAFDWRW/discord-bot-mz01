@@ -30,10 +30,20 @@ CIVIL_ROLE = "Гражданский"
 FRACTION_NAME = "Министерство Здравоохранения"
 DOCS_ROLE = "[-] Документы не утверждены"
 
-# ---------- EVENTS ----------
+# ====================== EVENTS (ЕДИНЫЕ) ======================
+
 @bot.event
 async def on_ready():
     print(f"Бот запущен как {bot.user}")
+
+    # --- запуск авто-разбана ---
+    if not auto_unban_task.is_running():
+        auto_unban_task.start()
+
+    # --- запуск авто-размута ---
+    if not auto_unmute.is_running():
+        auto_unmute.start()
+
 
 @bot.event
 async def on_command(ctx):
@@ -41,6 +51,9 @@ async def on_command(ctx):
         await ctx.message.delete()
     except discord.Forbidden:
         pass
+    except:
+        pass
+
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -86,19 +99,6 @@ def load_bans():
 def save_bans(data):
     with open(BANS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
-
-# ================= EVENTS =================
-
-@bot.event
-async def on_ready():
-    print(f"Бот запущен как {bot.user}")
-
-@bot.event
-async def on_command(ctx):
-    try:
-        await ctx.message.delete()
-    except:
-        pass
 
 # ================= JSON БАНЫ =================
 
@@ -160,21 +160,7 @@ async def auto_unban_task():
 
     if changed:
         save_bans(bans)
-
-# ================= EVENT =================
-
-@bot.event
-async def on_ready():
-    print(f"Бот запущен как {bot.user}")
-    auto_unban_task.start()
-
-@bot.event
-async def on_command(ctx):
-    try:
-        await ctx.message.delete()
-    except:
-        pass
-
+        
 MSK = timezone(timedelta(hours=3))
 
 from datetime import datetime, timedelta, timezone
@@ -951,27 +937,6 @@ async def mutelist(ctx):
     )
 
     await ctx.send(embed=embed)
-
-# ====================== ⏰ АВТО-РАЗМУТ ======================
-@bot.event
-async def on_ready():
-    auto_unmute.start()
-    await bot.wait_until_ready()
-    mutes = load_mutes()
-    now = datetime.now(MSK)
-
-    for uid, data in list(mutes.items()):
-        unmute_time = datetime.strptime(data["unmute_date"], "%d.%m.%Y %H:%M").replace(tzinfo=MSK)
-        if now >= unmute_time:
-            for guild in bot.guilds:
-                member = guild.get_member(int(uid))
-                mute_role = discord.utils.get(guild.roles, name="Mute")
-                if member and mute_role in member.roles:
-                    await member.remove_roles(mute_role, reason="Авто-размут")
-            del mutes[uid]
-            save_mutes(mutes)
-
-auto_unmute.start()
 
 # ---------- RUN ----------
 bot.run(os.getenv("TOKEN"))
