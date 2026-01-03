@@ -146,9 +146,9 @@ async def unmute(ctx, action: str, member: discord.Member, reason: str):
     embed = discord.Embed(
         description=(
             "📝 **Лог: Снятие мута**\n\n"
-            f"👤 Пользователь: {member.mention}\n\n"
+            f"👤 Пользователь: {member.mention}\n"
+            f"📄 Причина: {reason}\n"
             f"Исполнитель: {ctx.author.mention}\n"
-            f"📄 Причина: {reason}"
         ),
         color=discord.Color.green()
     )
