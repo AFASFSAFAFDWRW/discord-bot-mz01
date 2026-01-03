@@ -127,7 +127,7 @@ async def mute(ctx, member: discord.Member, minutes: int, *, reason: str):
         await member.remove_roles(mute_role)
 @bot.command(name="снять")
 @has_any_role()
-async def unmute(ctx, action: str, member: discord.Member):
+async def unmute(ctx, action: str, member: discord.Member, reason: str):
     if action.lower() != "мут":
         return
 
@@ -147,7 +147,8 @@ async def unmute(ctx, action: str, member: discord.Member):
         description=(
             "📝 **Лог: Снятие мута**\n\n"
             f"👤 Пользователь: {member.mention}\n\n"
-            f"Исполнитель: {ctx.author.mention}"
+            f"Исполнитель: {ctx.author.mention}\n"
+            f"📄 Причина: {reason}"
         ),
         color=discord.Color.green()
     )
