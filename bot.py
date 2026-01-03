@@ -45,11 +45,6 @@ async def on_command_error(ctx, error):
         return
     raise error
 
-intern_role = discord.utils.get(
-    ctx.guild.roles,
-    name="[ОИ] Отделение Интернатуры"
-)
-
 # =====================================================
 # =================== КОМАНДЫ =========================
 # =====================================================
@@ -58,6 +53,10 @@ intern_role = discord.utils.get(
 @has_any_role()
 async def mz(ctx, member: discord.Member):
     guild = ctx.guild
+    intern_role = discord.utils.get(
+    ctx.guild.roles,
+    name="[ОИ] Отделение Интернатуры"
+)
 
     mz_role = discord.utils.get(guild.roles, name="Министерство Здравоохранения")
     state_role = discord.utils.get(guild.roles, name="Государственная фракция")
