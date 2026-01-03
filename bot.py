@@ -101,21 +101,24 @@ async def mz(ctx, member: discord.Member):
         return
 
     removed_roles = []
+    added_roles = []
 
     if civil and civil in member.roles:
         removed_roles.append(civil)
         await member.remove_roles(civil)
 
     await member.add_roles(*required_roles)
+    added_roles.extend(required_roles)
 
     removed_text = " ".join(r.mention for r in removed_roles) if removed_roles else "—"
+    added_text = " ".join(r.mention for r in added_roles)
 
     # ---------- ЛОГ В ТЕКУЩИЙ КАНАЛ ----------
     embed = discord.Embed(
         description=(
             "📝 **Лог: Добавление ролей**\n\n"
             f"👤 Пользователь: {member.mention}\n"
-            f"📌 Роли: {mz_role.mention} {state_role.mention}\n"
+            f"📌 Роли: {added_text}\n"
             f"❌ Снятые роли: {removed_text}\n\n"
             f"Выдал роли: {ctx.author.mention}"
         ),
