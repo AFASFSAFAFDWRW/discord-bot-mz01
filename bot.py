@@ -223,7 +223,8 @@ async def fire(ctx, member: discord.Member, *, reason: str):
             description=(
                 f"Вы были уволены из фракции **{FRACTION_NAME}**.\n\n"
                 f"Причина: **{reason}**\n"
-                f"Дата: {datetime.now(timezone(timedelta(hours=3))):%d.%m.%Y %H:%M} МСК"
+                f"Дата: {datetime.now(timezone(timedelta(hours=3))):%d.%m.%Y %H:%M} МСК\n"
+                f"Вас уволил: {ctx.author.mention}"
             ),
             color=discord.Color.dark_red()
         ))
