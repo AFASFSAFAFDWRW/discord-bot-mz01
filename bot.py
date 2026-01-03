@@ -49,43 +49,65 @@ async def on_command_error(ctx, error):
 # =================== КОМАНДЫ =========================
 # =====================================================
 
-# ---------- !МЗ ----------
 @bot.command(name="МЗ")
 @has_any_role()
 async def mz(ctx, member: discord.Member):
-    roles_names = [
-        "Министерство Здравоохранения",
-        "Государственная фракция",
-        "[-] Документы не утверждены",
-        "[ОИ] Отделение Интернатуры",
-        "Интерн",
-        "Младший состав"
-    ]
+    guild = ctx.guild
 
-    roles = []
-    for name in roles_names:
-        role = discord.utils.get(ctx.guild.roles, name=name)
-        if not role:
-            await ctx.send(f"❌ Роль `{name}` не найдена.")
-            return
-        roles.append(role)
+    mz_role = discord.utils.get(guild.roles, name="Министерство Здравоохранения")
+    state_role = discord.utils.get(guild.roles, name="Государственная фракция")
+    civil = discord.utils.get(guild.roles, name=CIVIL_ROLE)
 
-    civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
+    if not mz_role or not state_role:
+        await ctx.send("❌ Не найдены необходимые роли.")
+        return
+
+    removed_roles = []
+
     if civil and civil in member.roles:
+        removed_roles.append(civil)
         await member.remove_roles(civil)
 
-    await member.add_roles(*roles)
+    await member.add_roles(mz_role, state_role)
 
+    removed_text = " ".join(r.mention for r in removed_roles) if removed_roles else "—"
+
+    # ---------- ЛОГ В ТЕКУЩИЙ КАНАЛ ----------
     embed = discord.Embed(
         description=(
-            "📝 **Лог: Зачисление в МЗ**\n\n"
+            "📝 **Лог: Добавление ролей**\n\n"
             f"👤 Пользователь: {member.mention}\n"
-            f"Исполнитель: {ctx.author.mention}"
+            f"📌 Роли: {mz_role.mention} {state_role.mention}\n"
+            f"❌ Снятые роли: {removed_text}\n\n"
+            f"Выдал роли: {ctx.author.mention}"
         ),
         color=discord.Color.green()
     )
 
     await ctx.send(embed=embed)
+
+    # ---------- ЛОГ В АУДИТ ----------
+    audit_channel = discord.utils.get(
+        guild.text_channels,
+        name="кадровый-аудит-принятия-и-увольнения-сотрудников"
+    )
+
+    if audit_channel:
+        now = discord.utils.utcnow()
+
+        audit_embed = discord.Embed(
+            description=(
+                "📝 **Лог: Принятие во фракцию**\n"
+                f"👤 Имя сотрудника: {member.display_name}\n"
+                f"В данный момент сотрудник в отделе: Отдел Интернатуры\n"
+                f"🗓️ Дата принятия: {now.strftime('%d.%m.%Y')}\n"
+                f"⏳ Время принятия: {now.strftime('%H:%M')}\n"
+                f"Принимал: {ctx.author.mention}"
+            ),
+            color=discord.Color.blue()
+        )
+
+        await audit_channel.send(embed=audit_embed)
 
 # =====================================================
 # ========== НОВЫЕ КОМАНДЫ ГОС ФРАКЦИЙ =================
