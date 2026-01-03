@@ -114,7 +114,8 @@ async def give_state_role(ctx, member, main_role_name):
         description=(
             "📝 **Лог: Добавление ролей**\n\n"
             f"👤 Пользователь: {member.mention}\n"
-            f"📌 Роли: {main_role.mention} {state_role.mention}\n\n"
+            f"📌 Роли: {main_role.mention} {state_role.mention}\n"
+            f"❌ Снятые роли: {removed_role.mention}\n\n"
             f"Выдал роли: {ctx.author.mention}"
         ),
         color=discord.Color.green()
