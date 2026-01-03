@@ -169,12 +169,6 @@ async def on_ready():
     auto_unban_task.start()
 
 @bot.event
-async def on_ready():
-    print(f"✅ Бот запущен как {bot.user}")
-    if not auto_unmute.is_running():
-        auto_unmute.start()
-
-@bot.event
 async def on_command(ctx):
     try:
         await ctx.message.delete()
@@ -959,8 +953,9 @@ async def mutelist(ctx):
     await ctx.send(embed=embed)
 
 # ====================== ⏰ АВТО-РАЗМУТ ======================
-@tasks.loop(minutes=1)
-async def auto_unmute():
+@bot.event
+async def on_ready():
+    auto_unmute.start()
     await bot.wait_until_ready()
     mutes = load_mutes()
     now = datetime.now(MSK)
