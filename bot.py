@@ -22,9 +22,6 @@ def has_any_role():
         )
     return commands.check(predicate)
 
-# ---------- ЦИВИКИ ----------
-CIVIL_ROLE = "Гражданский"
-
 # ---------- КОНСТАНТЫ ----------
 CIVIL_ROLE = "Гражданский"
 FRACTION_NAME = "Министерство Здравоохранения"
@@ -73,8 +70,11 @@ async def mz(ctx, member: discord.Member):
             return
         roles.append(role)
 
-    civil = discord.utils.get(ctx.guild.roles, name="Гражданский")
+    civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
+    removed_roles = []
+
     if civil and civil in member.roles:
+        removed_roles.append(civil)
         await member.remove_roles(civil)
 
     await member.add_roles(*roles)
@@ -105,7 +105,10 @@ async def give_state_role(ctx, member, main_role_name):
         await ctx.send("❌ Роль `Государственная фракция` не найдена.")
         return
 
+    removed_roles = []
+
     if civil and civil in member.roles:
+        removed_roles.append(civil)
         await member.remove_roles(civil)
 
     await member.add_roles(main_role, state_role)
@@ -115,7 +118,7 @@ async def give_state_role(ctx, member, main_role_name):
             "📝 **Лог: Добавление ролей**\n\n"
             f"👤 Пользователь: {member.mention}\n"
             f"📌 Роли: {main_role.mention} {state_role.mention}\n"
-            f"❌ Снятые роли: {removed_role.mention}\n\n"
+            f"❌ Снятые роли: {' '.join(r.mention for r in removed_roles) if removed_roles else '—'}\n\n"
             f"Выдал роли: {ctx.author.mention}"
         ),
         color=discord.Color.green()
@@ -151,7 +154,7 @@ async def fsin(ctx, member: discord.Member):
 @has_any_role()
 async def trk(ctx, member: discord.Member):
     await give_state_role(ctx, member, 'ТРК "Ритм"')
-    
+
 # ---------- !смена ника ----------
 @bot.command(name="смена")
 @has_any_role()
@@ -176,7 +179,7 @@ async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str
 @bot.command(name="уволить")
 @has_any_role()
 async def fire(ctx, member: discord.Member, *, reason: str):
-    civil = discord.utils.get(ctx.guild.roles, name="Гражданский")
+    civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
     if civil:
         await member.edit(roles=[civil])
 
@@ -197,7 +200,7 @@ async def annul(ctx, action: str, member: discord.Member):
     if action.lower() != "роли":
         return
 
-    civil = discord.utils.get(ctx.guild.roles, name="Гражданский")
+    civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
     if civil:
         await member.edit(roles=[civil])
 
