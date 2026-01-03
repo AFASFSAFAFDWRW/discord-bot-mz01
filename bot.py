@@ -36,13 +36,11 @@ DOCS_ROLE = "[-] Документы не утверждены"
 async def on_ready():
     print(f"Бот запущен как {bot.user}")
 
-    # --- запуск авто-разбана ---
-    if not auto_unban_task.is_running():
-        auto_unban_task.start()
-
-    # --- запуск авто-размута ---
     if not auto_unmute.is_running():
         auto_unmute.start()
+
+    if not auto_unban_task.is_running():
+        auto_unban_task.start()
 
 
 @bot.event
@@ -178,6 +176,37 @@ def save_bans(data):
     with open(BANS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
+# ===================== РАЗМУТ =====================
+@tasks.loop(minutes=1)
+async def auto_unmute():
+    await bot.wait_until_ready()
+    mutes = load_mutes()
+    now = datetime.now(MSK)
+
+    changed = False
+
+    for uid, data in list(mutes.items()):
+        unmute_time = datetime.strptime(
+            data["unmute_date"],
+            "%d.%m.%Y %H:%M"
+        ).replace(tzinfo=MSK)
+
+        if now >= unmute_time:
+            for guild in bot.guilds:
+                member = guild.get_member(int(uid))
+                mute_role = discord.utils.get(guild.roles, name="Mute")
+
+                if member and mute_role in member.roles:
+                    await member.remove_roles(
+                        mute_role,
+                        reason="Авто-размут по истечению срока"
+                    )
+
+            del mutes[uid]
+            changed = True
+
+    if changed:
+        save_mutes(mutes)
 
 # ====================== !бан ======================
 
