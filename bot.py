@@ -186,7 +186,10 @@ MSK = timezone(timedelta(hours=3))
 # ====================== !бан ======================
 
 @bot.command(name="бан")
-@has_any_role("Заведующие / Зам. Заведующие", "[АБ] Администрация Больницы")
+@commands.has_any_role(
+    "Заведующие / Зам. Заведующие",
+    "[АБ] Администрация Больницы"
+)
 async def ban_request(ctx, member: discord.Member, days: int, *, reason: str):
     guild = ctx.guild
 
