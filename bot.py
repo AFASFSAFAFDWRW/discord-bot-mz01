@@ -246,6 +246,125 @@ async def fire(ctx, member: discord.Member, *, reason: str):
         color=discord.Color.red()
     ))
 
+# =========== !повышен !понижен ===========
+MEDICAL_RANKS = [
+    "Интерн",
+    "Фельдшер",
+    "Участковый врач",
+    "Терапевт",
+    "Проктолог",
+    "Хирург",
+    "Заведующий отделением",
+    "Заместитель Главного Врача"
+]
+
+AUDIT_CHANNEL_NAME = "кадровый-аудит-повышений-и-понижений-сотрудников"
+
+@bot.command(name="повысить")
+@has_any_role()
+async def promote(ctx, action: str, member: discord.Member):
+    if action.lower() != "должность":
+        return
+
+    audit_channel = discord.utils.get(ctx.guild.text_channels, name=AUDIT_CHANNEL_NAME)
+
+    current_role = None
+    for role_name in MEDICAL_RANKS:
+        role = discord.utils.get(ctx.guild.roles, name=role_name)
+        if role and role in member.roles:
+            current_role = role
+            break
+
+    if not current_role:
+        await ctx.send("❌ У пользователя нет должности.")
+        return
+
+    index = MEDICAL_RANKS.index(current_role.name)
+    if index >= len(MEDICAL_RANKS) - 1:
+        await ctx.send("❌ Пользователь уже на максимальной должности.")
+        return
+
+    new_role = discord.utils.get(ctx.guild.roles, name=MEDICAL_RANKS[index + 1])
+
+    await member.remove_roles(current_role)
+    await member.add_roles(new_role)
+
+    embed = discord.Embed(
+        description=(
+            "📝 **Лог: Повышение в должности**\n\n"
+            f"👤 Сотрудник: {member.mention}\n"
+            f"Аудит: Повышен с {current_role.mention} на {new_role.mention}\n\n"
+            f"Повышал: {ctx.author.mention}"
+        ),
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed)
+
+    if audit_channel:
+        audit_embed = discord.Embed(
+            description=(
+                "📝 **Лог: Повышение в должности**\n\n"
+                f"👤 Сотрудник: {member.display_name}\n"
+                f"📈 Повышен с {current_role.name} на {new_role.name}\n\n"
+                f"Повышал: {ctx.author.mention}"
+            ),
+            color=discord.Color.green()
+        )
+        await audit_channel.send(embed=audit_embed)
+
+@bot.command(name="понизить")
+@has_any_role()
+async def demote(ctx, action: str, member: discord.Member):
+    if action.lower() != "должность":
+        return
+
+    audit_channel = discord.utils.get(ctx.guild.text_channels, name=AUDIT_CHANNEL_NAME)
+
+    current_role = None
+    for role_name in MEDICAL_RANKS:
+        role = discord.utils.get(ctx.guild.roles, name=role_name)
+        if role and role in member.roles:
+            current_role = role
+            break
+
+    if not current_role:
+        await ctx.send("❌ У пользователя нет должности.")
+        return
+
+    index = MEDICAL_RANKS.index(current_role.name)
+    if index == 0:
+        await ctx.send("❌ Пользователь уже на минимальной должности.")
+        return
+
+    new_role = discord.utils.get(ctx.guild.roles, name=MEDICAL_RANKS[index - 1])
+
+    await member.remove_roles(current_role)
+    await member.add_roles(new_role)
+
+    embed = discord.Embed(
+        description=(
+            "📝 **Лог: Понижение должности**\n\n"
+            f"👤 Сотрудник: {member.mention}\n"
+            f"Аудит: Понижен с {current_role.mention} на {new_role.mention}\n\n"
+            f"Понижал: {ctx.author.mention}"
+        ),
+        color=discord.Color.orange()
+    )
+    await ctx.send(embed=embed)
+
+    if audit_channel:
+        audit_embed = discord.Embed(
+            description=(
+                "📝 **Лог: Понижение в должности**\n\n"
+                f"👤 Сотрудник: {member.display_name}\n"
+                f"📉 Понижен с {current_role.name} на {new_role.name}\n\n"
+                f"Понижал: {ctx.author.mention}"
+            ),
+            color=discord.Color.orange()
+        )
+        await audit_channel.send(embed=audit_embed)
+
+
 # ---------- !аннулировать роли ----------
 @bot.command(name="аннулировать")
 @has_any_role()
