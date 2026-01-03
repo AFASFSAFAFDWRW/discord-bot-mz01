@@ -101,7 +101,6 @@ async def mz(ctx, member: discord.Member):
 
     await member.add_roles(*roles_to_add)
 
-    # 1️⃣ ТЕКУЩИЙ ЧАТ
     embed_main = discord.Embed(
         description=(
             "📝 **Лог: Добавление ролей**\n\n"
@@ -113,7 +112,6 @@ async def mz(ctx, member: discord.Member):
     )
     await ctx.send(embed=embed_main)
 
-    # 2️⃣ ДОКУМЕНТООБОРОТ
     log_channel = discord.utils.get(ctx.guild.text_channels, name=LOG_MZ_CHANNEL)
     if log_channel:
         embed_log = discord.Embed(
@@ -160,7 +158,6 @@ async def fire(ctx, member: discord.Member, *, reason: str):
 
     role_names = [r.name for r in member.roles]
 
-    # ❌ НЕТ ДОКУМЕНТОВ
     if DOCS_ROLE in role_names:
         await ctx.send(embed=discord.Embed(
             title="🚫 Увольнение невозможно",
@@ -169,7 +166,6 @@ async def fire(ctx, member: discord.Member, *, reason: str):
         ))
         return
 
-    # ❌ ВЫГОВОРЫ
     blocked = [r for r in role_names if r in BLOCK_FIRE_ROLES]
     if blocked:
         await ctx.send(embed=discord.Embed(
@@ -182,11 +178,9 @@ async def fire(ctx, member: discord.Member, *, reason: str):
         ))
         return
 
-    # ✅ УВОЛЬНЕНИЕ
     civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
     await member.edit(roles=[civil])
 
-    # 1️⃣ ТЕКУЩИЙ ЧАТ
     embed_chat = discord.Embed(
         description=(
             "📝 **Лог: Увольнение**\n\n"
@@ -200,7 +194,6 @@ async def fire(ctx, member: discord.Member, *, reason: str):
     embed_chat.set_footer(text=f"Исполнитель: {ctx.author.display_name}")
     await ctx.send(embed=embed_chat)
 
-    # 2️⃣ ДОКУМЕНТООБОРОТ
     log_channel = discord.utils.get(ctx.guild.text_channels, name=LOG_FIRE_CHANNEL)
     if log_channel:
         embed_log = discord.Embed(
@@ -216,7 +209,6 @@ async def fire(ctx, member: discord.Member, *, reason: str):
         )
         await log_channel.send(embed=embed_log)
 
-    # 📩 ЛИЧНОЕ СООБЩЕНИЕ
     try:
         await member.send(embed=discord.Embed(
             title="📄 Уведомление об увольнении",
@@ -252,6 +244,65 @@ async def annul(ctx, action: str, member: discord.Member):
     )
     embed.set_footer(text=f"Исполнитель: {ctx.author.display_name}")
     await ctx.send(embed=embed)
+
+# =====================================================
+# ========== НОВЫЕ КОМАНДЫ ГОС ФРАКЦИЙ =================
+# =====================================================
+
+async def give_state_role(ctx, member, main_role_name):
+    main_role = discord.utils.get(ctx.guild.roles, name=main_role_name)
+    state_role = discord.utils.get(ctx.guild.roles, name="Государственная фракция")
+    civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
+
+    if not main_role or not state_role:
+        await ctx.send("❌ Роль не найдена.")
+        return
+
+    if civil in member.roles:
+        await member.remove_roles(civil)
+
+    await member.add_roles(main_role, state_role)
+
+    embed = discord.Embed(
+        description=(
+            "📝 **Лог: Добавление ролей**\n\n"
+            f"👤 Пользователь: {member.mention}\n"
+            f"📌 Роли: {main_role.mention} {state_role.mention}\n\n"
+            f"Выдал роли: {ctx.author.mention}"
+        ),
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed)
+
+@bot.command(name="правительство")
+@has_any_role()
+async def government(ctx, member: discord.Member):
+    await give_state_role(ctx, member, "Правительство")
+
+@bot.command(name="ФСБ")
+@has_any_role()
+async def fsb(ctx, member: discord.Member):
+    await give_state_role(ctx, member, "ФСБ")
+
+@bot.command(name="МВД")
+@has_any_role()
+async def mvd(ctx, member: discord.Member):
+    await give_state_role(ctx, member, "МВД")
+
+@bot.command(name="МО")
+@has_any_role()
+async def mo(ctx, member: discord.Member):
+    await give_state_role(ctx, member, "МО")
+
+@bot.command(name="ФСИН")
+@has_any_role()
+async def fsin(ctx, member: discord.Member):
+    await give_state_role(ctx, member, "ФСИН")
+
+@bot.command(name="ТРК")
+@has_any_role()
+async def trk(ctx, member: discord.Member):
+    await give_state_role(ctx, member, 'ТРК "Ритм"')
 
 # ---------- RUN ----------
 bot.run(os.getenv("TOKEN"))
