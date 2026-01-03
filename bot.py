@@ -17,8 +17,9 @@ MZ_ROLE = "Министерство Здравоохранения"
 CIVIL_ROLE = "Гражданский"
 FRACTION_NAME = "Министерство Здравоохранения"
 
+DOCS_ROLE = "[-] Документы не утверждены"
+
 BLOCK_FIRE_ROLES = [
-    "[-] Документы не утверждены",
     "Запрет на увольнение",
     "Устное предупреждение",
     "Выговор 1/2",
@@ -45,7 +46,6 @@ def has_any_role():
 async def on_ready():
     print(f"Бот запущен как {bot.user}")
 
-# ---------- AUTO DELETE COMMAND ----------
 @bot.event
 async def on_command(ctx):
     try:
@@ -63,6 +63,7 @@ async def предупредить(ctx, member: discord.Member, *, reason: str):
         return
 
     await member.add_roles(role)
+
     await ctx.send(
         f"⚠️ {member.mention} получил устное предупреждение.\n"
         f"**Причина:** {reason}"
@@ -135,9 +136,25 @@ async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str
 @bot.command(name="уволить")
 @has_any_role()
 async def fire(ctx, member: discord.Member, *, reason: str):
+
+    member_role_names = [role.name for role in member.roles]
+
+    # --- ДОКУМЕНТЫ НЕ УТВЕРЖДЕНЫ ---
+    if DOCS_ROLE in member_role_names:
+        embed = discord.Embed(
+            description=(
+                "🚫 **Данное действие невозможно.**\n\n"
+                f"У сотрудника **{member.display_name}** отсутствует заполненная документация."
+            ),
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+        return
+
+    # --- ДРУГИЕ ДИСЦИПЛИНАРНЫЕ ВЗЫСКАНИЯ ---
     active_blocks = [
-        role.name for role in member.roles
-        if role.name in BLOCK_FIRE_ROLES
+        role for role in member_role_names
+        if role in BLOCK_FIRE_ROLES
     ]
 
     if active_blocks:
@@ -154,6 +171,7 @@ async def fire(ctx, member: discord.Member, *, reason: str):
         await ctx.send(embed=embed)
         return
 
+    # --- УВОЛЬНЕНИЕ ---
     civil_role = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
     if not civil_role:
         await ctx.send("❌ Роль 'Гражданский' не найдена.")
