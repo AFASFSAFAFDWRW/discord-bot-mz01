@@ -18,6 +18,7 @@ CIVIL_ROLE = "Гражданский"
 FRACTION_NAME = "Министерство Здравоохранения"
 
 DOCS_ROLE = "[-] Документы не утверждены"
+LOG_CHANNEL_NAME = "документооборот-прибывших-граждан"
 
 # роли для команды !МЗ
 MZ_ROLES = [
@@ -73,14 +74,13 @@ async def commands_list(ctx):
             "выдаёт устное предупреждение.\n\n"
 
             "**!МЗ @пользователь** — "
-            "зачисляет пользователя в Министерство Здравоохранения, "
-            "выдавая стартовые роли фракции.\n\n"
+            "зачисляет пользователя во фракцию МЗ с выдачей стартовых ролей.\n\n"
 
             "**!смена ника @пользователь новый_ник** — "
             "изменяет ник пользователя.\n\n"
 
             "**!уволить @пользователь причина** — "
-            "увольняет сотрудника, снимая все роли и оставляя «Гражданский».\n\n"
+            "увольняет сотрудника, оставляя роль «Гражданский».\n\n"
 
             "**!аннулировать роли @пользователь** — "
             "аннулирует все роли и оставляет «Гражданский»."
@@ -111,7 +111,7 @@ async def предупредить(ctx, member: discord.Member, *, reason: str):
         f"**Причина:** {reason}"
     )
 
-# ---------- МЗ (ПЕРЕРАБОТАНО) ----------
+# ---------- МЗ ----------
 @bot.command(name="МЗ")
 @has_any_role()
 async def mz(ctx, member: discord.Member):
@@ -128,23 +128,36 @@ async def mz(ctx, member: discord.Member):
 
     if missing_roles:
         await ctx.send(
-            f"❌ Не найдены роли:\n" + "\n".join(f"- {r}" for r in missing_roles)
+            "❌ Не найдены роли:\n" +
+            "\n".join(f"- {r}" for r in missing_roles)
         )
         return
 
     civil_role = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
+    removed_civil = False
+
     if civil_role and civil_role in member.roles:
         await member.remove_roles(civil_role)
+        removed_civil = True
 
     await member.add_roles(*roles_to_add)
 
+    log_channel = discord.utils.get(ctx.guild.text_channels, name=LOG_CHANNEL_NAME)
+    if not log_channel:
+        await ctx.send(f"❌ Канал `{LOG_CHANNEL_NAME}` не найден.")
+        return
+
     embed = discord.Embed(
         description=(
-            "📝 **Лог: Зачисление во фракцию**\n\n"
-            f"👤 Пользователь: {member.mention}\n"
-            f"📌 Фракция: {FRACTION_NAME}\n\n"
-            "**Выданные роли:**\n" +
-            "\n".join(f"- {r.name}" for r in roles_to_add)
+            "📝 **Лог: Добавление роли**\n\n"
+            f"👤 **Пользователь:** {member.mention}\n"
+            f"🏛 **Фракция:** {FRACTION_NAME}\n\n"
+            "**📋 Добавленные роли:**\n" +
+            "\n".join(f"- {role.name}" for role in roles_to_add) +
+            (
+                "\n\n❌ **Снята роль:** Гражданский"
+                if removed_civil else ""
+            )
         ),
         color=discord.Color.green()
     )
@@ -154,7 +167,7 @@ async def mz(ctx, member: discord.Member):
         icon_url=ctx.author.avatar.url if ctx.author.avatar else None
     )
 
-    await ctx.send(embed=embed)
+    await log_channel.send(embed=embed)
 
 # ---------- СМЕНА НИКА ----------
 @bot.command(name="смена")
