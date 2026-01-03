@@ -150,6 +150,132 @@ async def mz(ctx, member: discord.Member):
 
         await audit_channel.send(embed=audit_embed)
 
+# ====================== !бан ========================
+
+from datetime import datetime, timedelta, timezone
+
+MSK = timezone(timedelta(hours=3))
+
+@bot.command(name="бан")
+@has_any_role()
+async def ban_request(ctx, member: discord.Member, days: int, *, reason: str):
+    guild = ctx.guild
+
+    # роли
+    chief_role = discord.utils.get(guild.roles, name="Главный врач")
+
+    if not chief_role:
+        await ctx.send("❌ Роль `Главный врач` не найдена.")
+        return
+
+    # ищем конкретного человека с ролью Главный врач
+    chief_member = None
+    for m in guild.members:
+        if chief_role in m.roles:
+            chief_member = m
+            break
+
+    if not chief_member:
+        await ctx.send("❌ Не найден пользователь с ролью `Главный врач`.")
+        return
+
+    # embed-запрос
+    request_embed = discord.Embed(
+        description=(
+            f"⚠️ {chief_member.mention}\n\n"
+            f"Попытка забанить пользователя {member.mention} из данного Discord сервера.\n\n"
+            f"🗓️ **Дни бана:** {days}\n"
+            f"📄 **Причина бана:** {reason}\n\n"
+            "Данный запрос на блокировку пользователя Discord ожидает личного подтверждения от Главного Врача.\n\n"
+            "🔔 **Подсказка Главному Врачу:**\n"
+            "Нажмите ✅ — подтвердить бан\n"
+            "Нажмите ❌ — отклонить бан"
+        ),
+        color=discord.Color.orange()
+    )
+
+    msg = await ctx.send(embed=request_embed)
+    await msg.add_reaction("✅")
+    await msg.add_reaction("❌")
+
+    def check(reaction, user):
+        return (
+            reaction.message.id == msg.id
+            and user == chief_member
+            and str(reaction.emoji) in ("✅", "❌")
+        )
+
+    try:
+        reaction, user = await bot.wait_for("reaction_add", timeout=86400, check=check)
+    except asyncio.TimeoutError:
+        await msg.edit(
+            embed=discord.Embed(
+                description="⌛ Запрос на бан был автоматически отменён (истекло время ожидания).",
+                color=discord.Color.red()
+            )
+        )
+        return
+
+    # ---- ОТКЛОНЕНИЕ ----
+    if str(reaction.emoji) == "❌":
+        await msg.edit(
+            embed=discord.Embed(
+                description=(
+                    "❌ **Бан отклонён.**\n\n"
+                    f"Запрос на блокировку пользователя {member.mention} был отклонён.\n"
+                    f"Решение принял: {chief_member.mention}"
+                ),
+                color=discord.Color.red()
+            )
+        )
+        return
+
+    # ---- ПОДТВЕРЖДЕНИЕ ----
+    now = datetime.now(MSK)
+    unban_time = now + timedelta(days=days)
+
+    try:
+        dm_embed = discord.Embed(
+            description=(
+                f"🔴 **Вас выгнали и заблокировали на {days} дней из Discord сервера "
+                f"фракции `Министерство Здравоохранения`.**\n\n"
+                f"📄 **Причина:** {reason}\n\n"
+                f"👤 **Инициатор блокировки:** {ctx.author}\n"
+                f"✅ **Подтвердил блокировку:** Главный Врач\n\n"
+                f"📅 **Дата блокировки:** {now.strftime('%d.%m.%Y')}\n"
+                f"⏰ **Время блокировки:** {now.strftime('%H:%M')} (МСК)\n\n"
+                f"🟢 **Дата и время разблокировки:** "
+                f"{unban_time.strftime('%d.%m.%Y %H:%M')} (МСК)\n\n"
+                "В случае несогласия вы можете обратиться в раздел жалоб "
+                "с доказательствами."
+            ),
+            color=discord.Color.red()
+        )
+        await member.send(embed=dm_embed)
+    except:
+        pass
+
+    await guild.ban(
+        member,
+        reason=f"{reason} | Инициатор: {ctx.author} | Подтвердил: Главный Врач",
+        delete_message_days=0
+    )
+
+    await msg.edit(
+        embed=discord.Embed(
+            description=(
+                "✅ **Бан подтверждён и выполнен.**\n\n"
+                f"👤 Пользователь: {member}\n"
+                f"🗓️ Срок: {days} дней\n"
+                f"📄 Причина: {reason}\n\n"
+                f"Инициатор: {ctx.author.mention}\n"
+                f"Подтвердил блокировку: {chief_member.mention}"
+            ),
+            color=discord.Color.green()
+        )
+    )
+
+
 # =====================================================
 # ========== НОВЫЕ КОМАНДЫ ГОС ФРАКЦИЙ =================
 # =====================================================
