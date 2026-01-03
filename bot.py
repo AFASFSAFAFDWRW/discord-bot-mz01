@@ -141,7 +141,7 @@ async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str
 
 @bot.command(
     name="уволить",
-    aliases=["аннулирование роли"]
+    aliases=["аннулирование ролей"]
 )
 @has_any_role()
 async def fire(ctx, member: discord.Member, *, reason: str = None):
