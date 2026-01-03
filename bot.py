@@ -22,6 +22,14 @@ def has_any_role():
         )
     return commands.check(predicate)
 
+# ---------- ЦИВИКИ ----------
+CIVIL_ROLE = "Гражданский"
+
+# ---------- КОНСТАНТЫ ----------
+CIVIL_ROLE = "Гражданский"
+FRACTION_NAME = "Министерство Здравоохранения"
+DOCS_ROLE = "[-] Документы не утверждены"
+
 # ---------- EVENTS ----------
 @bot.event
 async def on_ready():
