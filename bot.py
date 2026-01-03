@@ -270,21 +270,18 @@ async def annul(ctx, action: str, member: discord.Member):
 @bot.command(name="чистка")
 @has_any_role()
 async def clear_chat(ctx, amount: int):
-    # создаём временный вебхук
-    webhook = await ctx.channel.create_webhook(name="System")
-
-    # сообщение о начале (как вебхук)
-    start_msg = await webhook.send(
-        content=f"⏳ Ожидайте. Начал очистку **{amount}** строк в данном чате.",
-        username="Очистка чата",
-        avatar_url=ctx.guild.icon.url if ctx.guild.icon else None,
-        wait=True
+    # embed: начало очистки
+    start_embed = discord.Embed(
+        description=f"⏳ Ожидайте. Начал очистку **{amount}** строк в данном чате.",
+        color=discord.Color.orange()
     )
+
+    start_msg = await ctx.send(embed=start_embed)
 
     # задержка 5 секунд
     await asyncio.sleep(5)
 
-    # удаляем сообщения (amount + команда)
+    # удаляем сообщения (amount + сообщение команды)
     deleted = await ctx.channel.purge(limit=amount + 1)
 
     # удаляем сообщение ожидания
@@ -293,18 +290,16 @@ async def clear_chat(ctx, amount: int):
     except:
         pass
 
-    # итоговое сообщение (как вебхук)
-    await webhook.send(
-        content=(
+    # embed: результат
+    result_embed = discord.Embed(
+        description=(
             f"✅ По запросу от {ctx.author.mention} "
             f"было очищено **{len(deleted) - 1}** строк из данного чата."
         ),
-        username="Очистка чата",
-        avatar_url=ctx.guild.icon.url if ctx.guild.icon else None
+        color=discord.Color.green()
     )
 
-    # удаляем вебхук
-    await webhook.delete()
+    await ctx.send(embed=result_embed)
 
 # ---------- !мут ----------
 @bot.command(name="мут")
