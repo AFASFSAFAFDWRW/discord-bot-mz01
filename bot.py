@@ -78,16 +78,25 @@ async def commands_list(ctx):
 @has_any_role()
 async def mz(ctx, member: discord.Member):
     guild = ctx.guild
-    intern_role = discord.utils.get(
-    ctx.guild.roles,
-    name="[ОИ] Отделение Интернатуры"
-)
 
+    intern_dep = discord.utils.get(guild.roles, name="[ОИ] Отделение Интернатуры")
     mz_role = discord.utils.get(guild.roles, name="Министерство Здравоохранения")
     state_role = discord.utils.get(guild.roles, name="Государственная фракция")
+    junior_role = discord.utils.get(guild.roles, name="Младший состав")
+    intern_role = discord.utils.get(guild.roles, name="Интерн")
+    docs_role = discord.utils.get(guild.roles, name="[-] Документы не утверждены")
     civil = discord.utils.get(guild.roles, name=CIVIL_ROLE)
 
-    if not mz_role or not state_role:
+    required_roles = [
+        mz_role,
+        state_role,
+        junior_role,
+        intern_role,
+        intern_dep,
+        docs_role
+    ]
+
+    if any(r is None for r in required_roles):
         await ctx.send("❌ Не найдены необходимые роли.")
         return
 
@@ -97,7 +106,7 @@ async def mz(ctx, member: discord.Member):
         removed_roles.append(civil)
         await member.remove_roles(civil)
 
-    await member.add_roles(mz_role, state_role)
+    await member.add_roles(*required_roles)
 
     removed_text = " ".join(r.mention for r in removed_roles) if removed_roles else "—"
 
