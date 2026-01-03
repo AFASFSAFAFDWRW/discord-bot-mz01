@@ -13,14 +13,11 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # ---------- КОНСТАНТЫ ----------
 ALLOWED_ROLE = "[АБ] Администрация Больницы"
 WARNING_ROLE = "Устное предупреждение"
-
 CIVIL_ROLE = "Гражданский"
 FRACTION_NAME = "Министерство Здравоохранения"
-
 DOCS_ROLE = "[-] Документы не утверждены"
 LOG_CHANNEL_NAME = "документооборот-прибывших-граждан"
 
-# роли для команды !МЗ
 MZ_ROLES = [
     "Министерство Здравоохранения",
     "Государственная фракция",
@@ -64,21 +61,38 @@ async def on_command(ctx):
     except discord.Forbidden:
         pass
 
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        return
+    raise error
+
+# ---------- КОМАНДЫ ----------
+@bot.command(name="команды")
+async def commands_list(ctx):
+    embed = discord.Embed(
+        title="📌 Доступные команды",
+        description=(
+            "**!МЗ @пользователь** — зачисление во фракцию МЗ и выдача стартовых ролей\n"
+            "**!команды** — список доступных команд"
+        ),
+        color=discord.Color.blue()
+    )
+
+    await ctx.send(embed=embed)
+
 # ---------- МЗ ----------
 @bot.command(name="МЗ")
 @has_any_role()
 async def mz(ctx, member: discord.Member):
 
     roles_to_add = []
-    role_mentions = []
-
     for role_name in MZ_ROLES:
         role = discord.utils.get(ctx.guild.roles, name=role_name)
         if not role:
             await ctx.send(f"❌ Роль `{role_name}` не найдена.")
             return
         roles_to_add.append(role)
-        role_mentions.append(role.mention)
 
     civil_role = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
     if civil_role and civil_role in member.roles:
@@ -86,46 +100,33 @@ async def mz(ctx, member: discord.Member):
 
     await member.add_roles(*roles_to_add)
 
-    # ---------- СООБЩЕНИЕ В ТОТ ЖЕ ЧАТ ----------
-    embed_local = discord.Embed(
+    # ---------- 1 СООБЩЕНИЕ (ТЕКУЩИЙ ЧАТ) ----------
+    roles_mentions = " ".join(role.mention for role in roles_to_add)
+
+    embed_main = discord.Embed(
         description=(
             "📝 **Лог: Добавление роли**\n\n"
-            "💊 **Роль:**\n" +
-            "\n".join(role_mentions) +
-            f"\n\n👤 **Пользователь:** {member.mention}"
+            f"💊 **Роль:** {roles_mentions}\n"
+            f"👤 **Пользователь:** {member.mention}\n\n"
+            f"**Выдал:** {ctx.author.mention}"
         ),
         color=discord.Color.green()
     )
 
-    embed_local.set_footer(
-        text=f"Выдал: {ctx.author.display_name}",
-        icon_url=ctx.author.avatar.url if ctx.author.avatar else None
-    )
+    await ctx.send(embed=embed_main)
 
-    await ctx.send(embed=embed_local)
-
-    # ---------- ЛОГ В ДОКУМЕНТООБОРОТ ----------
+    # ---------- 2 СООБЩЕНИЕ (ЛОГ-КАНАЛ) ----------
     log_channel = discord.utils.get(ctx.guild.text_channels, name=LOG_CHANNEL_NAME)
-    if not log_channel:
-        return
-
-    embed_log = discord.Embed(
-        description=(
-            "📝 **Лог: Зачисление во фракцию**\n\n"
-            f"👤 **Пользователь:** {member.mention}\n"
-            f"🏛 **Фракция:** {FRACTION_NAME}\n\n"
-            "**Выданные роли:**\n" +
-            "\n".join(role_mentions)
-        ),
-        color=discord.Color.blue()
-    )
-
-    embed_log.set_footer(
-        text=f"Исполнитель: {ctx.author.display_name}",
-        icon_url=ctx.author.avatar.url if ctx.author.avatar else None
-    )
-
-    await log_channel.send(embed=embed_log)
+    if log_channel:
+        embed_log = discord.Embed(
+            description=(
+                "📝 **Лог: Зачисление во фракцию**\n\n"
+                f"👤 **Пользователь:** {member.mention}\n"
+                f"🏛 **Фракция:** {FRACTION_NAME}"
+            ),
+            color=discord.Color.blue()
+        )
+        await log_channel.send(embed=embed_log)
 
 # ---------- RUN ----------
 bot.run(os.getenv("TOKEN"))
