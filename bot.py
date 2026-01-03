@@ -12,7 +12,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ---------- КОНСТАНТЫ ----------
 CIVIL_ROLE = "Гражданский"
-FRACTION_NAME = "Министерство Здравоохранения"
 DOCS_ROLE = "[-] Документы не утверждены"
 
 LOG_MZ_CHANNEL = "документооборот-прибывших-граждан"
@@ -73,7 +72,7 @@ async def commands_list(ctx):
     embed = discord.Embed(
         title="📌 Команды Государственного помощника",
         description=(
-            "**!МЗ @пользователь** — зачисляет пользователя во фракцию\n\n"
+            "**!МЗ @пользователь** — зачисление\n\n"
             "**!смена ника @пользователь новый_ник** — смена ника\n\n"
             "**!уволить @пользователь причина** — увольнение\n\n"
             "**!аннулировать роли @пользователь** — аннулирование ролей"
@@ -91,7 +90,10 @@ async def mz(ctx, member: discord.Member):
     for name in MZ_ROLES:
         role = discord.utils.get(ctx.guild.roles, name=name)
         if not role:
-            await ctx.send(f"❌ Роль `{name}` не найдена.")
+            await ctx.send(embed=discord.Embed(
+                description=f"❌ Роль `{name}` не найдена.",
+                color=discord.Color.red()
+            ))
             return
         roles_to_add.append(role)
 
@@ -101,30 +103,15 @@ async def mz(ctx, member: discord.Member):
 
     await member.add_roles(*roles_to_add)
 
-    embed_main = discord.Embed(
+    await ctx.send(embed=discord.Embed(
         description=(
             "📝 **Лог: Добавление ролей**\n\n"
-            f"👤 Пользователь: {member.mention}\n"
-            f"🎖 Роли: {' '.join(r.mention for r in roles_to_add)}\n\n"
+            f"👤 {member.mention}\n"
+            f"🎖 {' '.join(r.mention for r in roles_to_add)}\n\n"
             f"Исполнитель: {ctx.author.mention}"
         ),
         color=discord.Color.green()
-    )
-    await ctx.send(embed=embed_main)
-
-    log_channel = discord.utils.get(ctx.guild.text_channels, name=LOG_MZ_CHANNEL)
-    if log_channel:
-        embed_log = discord.Embed(
-            description=(
-                "📄 **Документооборот**\n\n"
-                f"Сотрудник: {member.mention}\n"
-                f"Ник: {member.display_name}\n"
-                f"ID: {member.id}\n"
-                f"Статус: Зачислен"
-            ),
-            color=discord.Color.blue()
-        )
-        await log_channel.send(embed=embed_log)
+    ))
 
 # ---------- СМЕНА НИКА ----------
 @bot.command(name="смена")
@@ -138,7 +125,7 @@ async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str
 
     now = datetime.now(timezone(timedelta(hours=3)))
 
-    embed = discord.Embed(
+    await ctx.send(embed=discord.Embed(
         description=(
             "📝 **Лог: Смена ника**\n\n"
             f"👤 {member.mention}\n"
@@ -147,9 +134,7 @@ async def change_nick(ctx, action: str, member: discord.Member, *, new_nick: str
             f"Дата: {now:%d.%m.%Y %H:%M} МСК"
         ),
         color=discord.Color.green()
-    )
-    embed.set_footer(text=f"Исполнитель: {ctx.author.display_name}")
-    await ctx.send(embed=embed)
+    ))
 
 # ---------- УВОЛИТЬ ----------
 @bot.command(name="уволить")
@@ -158,44 +143,59 @@ async def fire(ctx, member: discord.Member, *, reason: str):
 
     role_names = [r.name for r in member.roles]
 
+    # ❌ Документы
     if DOCS_ROLE in role_names:
-        await ctx.send("🚫 Невозможно: отсутствует документация.")
+        await ctx.send(embed=discord.Embed(
+            title="🚫 Увольнение невозможно",
+            description=(
+                f"👤 {member.mention}\n"
+                "Причина: **Документы не утверждены**"
+            ),
+            color=discord.Color.red()
+        ))
         return
 
-    if any(r in BLOCK_FIRE_ROLES for r in role_names):
-        await ctx.send("🚫 Невозможно: активные дисциплинарные взыскания.")
+    # ❌ Выговоры
+    blocked = [r for r in role_names if r in BLOCK_FIRE_ROLES]
+    if blocked:
+        await ctx.send(embed=discord.Embed(
+            title="🚫 Увольнение невозможно",
+            description=(
+                f"👤 {member.mention}\n"
+                f"Причина: **{', '.join(blocked)}**"
+            ),
+            color=discord.Color.red()
+        ))
         return
 
+    # ✅ Увольнение
     civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
     await member.edit(roles=[civil])
 
-    embed_chat = discord.Embed(
+    embed = discord.Embed(
         description=(
             "📝 **Лог: Увольнение**\n\n"
             f"👤 {member.mention}\n"
-            f"Ник: {member.display_name}\n"
-            f"ID: {member.id}\n"
-            f"Причина: {reason}"
+            f"Причина: {reason}\n\n"
+            f"Исполнитель: {ctx.author.display_name}"
         ),
         color=discord.Color.red()
     )
-    embed_chat.set_footer(text=f"Исполнитель: {ctx.author.display_name}")
-    await ctx.send(embed=embed_chat)
+    await ctx.send(embed=embed)
 
-    log_channel = discord.utils.get(ctx.guild.text_channels, name=LOG_FIRE_CHANNEL)
-    if log_channel:
-        embed_log = discord.Embed(
+    # 📩 ЛИЧНОЕ СООБЩЕНИЕ УВОЛЕННОМУ
+    try:
+        await member.send(embed=discord.Embed(
+            title="📄 Уведомление об увольнении",
             description=(
-                "📄 **Документооборот (увольнение)**\n\n"
-                f"Сотрудник: {member.mention}\n"
-                f"Ник: {member.display_name}\n"
-                f"ID: {member.id}\n"
-                f"Причина: {reason}\n\n"
-                f"Исполнитель: {ctx.author.display_name}"
+                "Вы были уволены из фракции **Министерство Здравоохранения**.\n\n"
+                f"Причина: **{reason}**\n\n"
+                f"Дата: {datetime.now(timezone(timedelta(hours=3))):%d.%m.%Y %H:%M} МСК"
             ),
             color=discord.Color.dark_red()
-        )
-        await log_channel.send(embed=embed_log)
+        ))
+    except discord.Forbidden:
+        pass  # ЛС закрыты — игнорируем
 
 # ---------- АННУЛИРОВАТЬ ----------
 @bot.command(name="аннулировать")
@@ -207,17 +207,13 @@ async def annul(ctx, action: str, member: discord.Member):
     civil = discord.utils.get(ctx.guild.roles, name=CIVIL_ROLE)
     await member.edit(roles=[civil])
 
-    embed = discord.Embed(
+    await ctx.send(embed=discord.Embed(
         description=(
             "📝 **Лог: Аннулирование ролей**\n\n"
-            f"👤 {member.mention}\n"
-            f"Ник: {member.display_name}\n"
-            f"ID: {member.id}"
+            f"👤 {member.mention}"
         ),
         color=discord.Color.orange()
-    )
-    embed.set_footer(text=f"Исполнитель: {ctx.author.display_name}")
-    await ctx.send(embed=embed)
+    ))
 
 # ---------- RUN ----------
 bot.run(os.getenv("TOKEN"))
