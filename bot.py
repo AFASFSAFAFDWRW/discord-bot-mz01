@@ -846,56 +846,131 @@ async def clear_chat(ctx, amount: int):
 
     await ctx.send(embed=result_embed)
 
-# ---------- !мут ----------
+# ====================== !мут / !унмут / !мутлист ======================
+
+import json
+from datetime import datetime, timedelta, timezone
+import discord
+from discord.ext import commands
+
+MSK = timezone(timedelta(hours=3))
+MUTES_FILE = "mute.json"
+
+# ====================== 💾 ЗАГРУЗКА / СОХРАНЕНИЕ ======================
+def load_mutes():
+    try:
+        with open(MUTES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save_mutes(data):
+    with open(MUTES_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+# ====================== !мут ======================
 @bot.command(name="мут")
 @has_any_role()
 async def mute(ctx, member: discord.Member, minutes: int, *, reason: str):
-    mute_role = discord.utils.get(ctx.guild.roles, name="Mute")
+    guild = ctx.guild
+    mute_role = discord.utils.get(guild.roles, name="Mute")
+
     if not mute_role:
-        await ctx.send("❌ Роль `Mute` не найдена.")
+        await ctx.send("❌ Роль Mute не найдена.")
         return
 
-    await member.add_roles(mute_role)
+    now = datetime.now(MSK)
+    unmute_time = now + timedelta(minutes=minutes)
 
-    await ctx.send(embed=discord.Embed(
-        description=(
-            "📝 **Лог: Мут**\n\n"
-            f"👤 Пользователь: {member.mention}\n"
-            f"⏳ Время: {minutes} мин\n"
-            f"📄 Причина: {reason}\n"
-            f"Исполнитель: {ctx.author.mention}"
-        ),
-        color=discord.Color.orange()
-    ))
+    await member.add_roles(mute_role, reason=reason)
 
-    await asyncio.sleep(minutes * 60)
+    mutes = load_mutes()
+    mutes[str(member.id)] = {
+        "username": str(member),
+        "mute_date": now.strftime("%d.%m.%Y %H:%M"),
+        "unmute_date": unmute_time.strftime("%d.%m.%Y %H:%M"),
+        "reason": reason
+    }
+    save_mutes(mutes)
+
+    await ctx.send(
+        f"🔇 **Мут выдан**\n\n"
+        f"{member.mention} | `{member.id}`\n"
+        f"⏳ До: `{unmute_time.strftime('%d.%m.%Y %H:%M')}`\n"
+        f"📄 Причина: {reason}"
+    )
+
+# ====================== !унмут ======================
+@bot.command(name="унмут")
+@has_any_role()
+async def unmute(ctx, member: discord.Member, *, reason: str = "Истёк срок / решение администрации"):
+    guild = ctx.guild
+    mute_role = discord.utils.get(guild.roles, name="Mute")
 
     if mute_role in member.roles:
-        await member.remove_roles(mute_role)
+        await member.remove_roles(mute_role, reason=reason)
 
-# ---------- !снять мут ----------
-@bot.command(name="снять")
+    mutes = load_mutes()
+    if str(member.id) in mutes:
+        del mutes[str(member.id)]
+        save_mutes(mutes)
+
+    await ctx.send(
+        f"🔊 **Мут снят**\n\n"
+        f"{member.mention} | `{member.id}`\n"
+        f"📄 Причина: {reason}"
+    )
+
+# ====================== !мутлист ======================
+@bot.command(name="мутлист")
 @has_any_role()
-async def unmute(ctx, action: str, member: discord.Member, *, reason: str):
-    if action.lower() != "мут":
+async def mutelist(ctx):
+    mutes = load_mutes()
+
+    if not mutes:
+        await ctx.send("✅ Мут-лист пуст.")
         return
 
-    mute_role = discord.utils.get(ctx.guild.roles, name="Mute")
-    if not mute_role:
-        await ctx.send("❌ Роль `Mute` не найдена.")
-        return
+    lines = []
+    i = 1
 
-    await member.remove_roles(mute_role)
+    for uid, data in mutes.items():
+        lines.append(
+            f"**{i}.** <@{uid}> | `{uid}` | "
+            f"{data['mute_date']} | {data['unmute_date']} | {data['reason']}"
+        )
+        i += 1
 
-    await ctx.send(embed=discord.Embed(
+    embed = discord.Embed(
         description=(
-            "📝 **Лог: Снятие мута**\n\n"
-            f"👤 Пользователь: {member.mention}\n"
-            f"📄 Причина: {reason}\n"
-            f"Исполнитель: {ctx.author.mention}"
+            "**Пользователи в муте на сервере Министерства Здравоохранения**\n\n"
+            "**@Пользователь | ID | Дата и время мута | Дата и время размута | Причина**\n\n"
+            + "\n".join(lines)
         ),
-        color=discord.Color.green()
-    ))
+        color=discord.Color.orange()
+    )
+
+    await ctx.send(embed=embed)
+
+# ====================== ⏰ АВТО-РАЗМУТ ======================
+@tasks.loop(minutes=1)
+async def auto_unmute():
+    await bot.wait_until_ready()
+    mutes = load_mutes()
+    now = datetime.now(MSK)
+
+    for uid, data in list(mutes.items()):
+        unmute_time = datetime.strptime(data["unmute_date"], "%d.%m.%Y %H:%M").replace(tzinfo=MSK)
+        if now >= unmute_time:
+            for guild in bot.guilds:
+                member = guild.get_member(int(uid))
+                mute_role = discord.utils.get(guild.roles, name="Mute")
+                if member and mute_role in member.roles:
+                    await member.remove_roles(mute_role, reason="Авто-размут")
+            del mutes[uid]
+            save_mutes(mutes)
+
+auto_unmute.start()
 
 # ---------- RUN ----------
 bot.run(os.getenv("TOKEN"))
