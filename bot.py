@@ -62,6 +62,7 @@ async def commands_list(ctx):
             "**!смена ника @пользователь новый_ник** — смена ника\n\n"
             "**!уволить @пользователь причина** — увольнение\n\n"
             "**!аннулировать роли @пользователь** — аннулирование ролей\n\n"
+            "**!чистка кол-во строк** — удаляет указанное кол-во сообщений в том чате, где приминилась данная команда\n\n"
             "**!мут @пользователь минуты причина** — мут\n\n"
             "**!снять мут @пользователь причина** — снять мут"
         ),
@@ -269,28 +270,41 @@ async def annul(ctx, action: str, member: discord.Member):
 @bot.command(name="чистка")
 @has_any_role()
 async def clear_chat(ctx, amount: int):
-    # уведомление о начале
-    start_msg = await ctx.send(
-        f"⏳ Ожидайте. Начал очистку **{amount}** строк в данном чате."
+    # создаём временный вебхук
+    webhook = await ctx.channel.create_webhook(name="System")
+
+    # сообщение о начале (как вебхук)
+    start_msg = await webhook.send(
+        content=f"⏳ Ожидайте. Начал очистку **{amount}** строк в данном чате.",
+        username="Очистка чата",
+        avatar_url=ctx.guild.icon.url if ctx.guild.icon else None,
+        wait=True
     )
 
     # задержка 5 секунд
     await asyncio.sleep(5)
 
-    # удаляем сообщения (amount + сообщение команды)
+    # удаляем сообщения (amount + команда)
     deleted = await ctx.channel.purge(limit=amount + 1)
 
-    # удаляем сообщение "ожидайте"
+    # удаляем сообщение ожидания
     try:
         await start_msg.delete()
     except:
         pass
 
-    # итоговое уведомление
-    await ctx.send(
-        f"✅ По запросу от {ctx.author.mention} было очищено **{len(deleted) - 1}** строк из данного чата."
+    # итоговое сообщение (как вебхук)
+    await webhook.send(
+        content=(
+            f"✅ По запросу от {ctx.author.mention} "
+            f"было очищено **{len(deleted) - 1}** строк из данного чата."
+        ),
+        username="Очистка чата",
+        avatar_url=ctx.guild.icon.url if ctx.guild.icon else None
     )
 
+    # удаляем вебхук
+    await webhook.delete()
 
 # ---------- !мут ----------
 @bot.command(name="мут")
