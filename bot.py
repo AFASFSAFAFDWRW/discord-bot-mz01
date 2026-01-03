@@ -274,7 +274,133 @@ async def ban_request(ctx, member: discord.Member, days: int, *, reason: str):
             color=discord.Color.green()
         )
     )
+================== !разбан =========================
+from datetime import datetime, timedelta, timezone
 
+MSK = timezone(timedelta(hours=3))
+
+@bot.command(name="разбан")
+@has_any_role()
+async def unban_request(ctx, user_id: int, *, reason: str):
+    guild = ctx.guild
+
+    # роль главного врача
+    chief_role = discord.utils.get(guild.roles, name="Главный врач")
+    if not chief_role:
+        await ctx.send("❌ Роль `Главный врач` не найдена.")
+        return
+
+    # ищем конкретного человека с ролью Главный врач
+    chief_member = None
+    for m in guild.members:
+        if chief_role in m.roles:
+            chief_member = m
+            break
+
+    if not chief_member:
+        await ctx.send("❌ Не найден пользователь с ролью `Главный врач`.")
+        return
+
+    # проверяем, забанен ли пользователь
+    try:
+        banned_user = await guild.fetch_ban(discord.Object(id=user_id))
+        user = banned_user.user
+    except discord.NotFound:
+        await ctx.send("❌ Пользователь с таким ID не найден в бан-листе.")
+        return
+
+    # embed-запрос
+    request_embed = discord.Embed(
+        description=(
+            f"⚠️ {chief_member.mention}\n\n"
+            f"Попытка **разблокировать пользователя** `{user}`.\n\n"
+            f"📄 **Причина разблокировки:** {reason}\n\n"
+            "Данный запрос на разблокировку пользователя ожидает личного подтверждения от Главного Врача.\n\n"
+            "🔔 **Подсказка Главному Врачу:**\n"
+            "Нажмите ✅ — подтвердить разбан\n"
+            "Нажмите ❌ — отклонить разбан"
+        ),
+        color=discord.Color.orange()
+    )
+
+    msg = await ctx.send(embed=request_embed)
+    await msg.add_reaction("✅")
+    await msg.add_reaction("❌")
+
+    def check(reaction, user_react):
+        return (
+            reaction.message.id == msg.id
+            and user_react == chief_member
+            and str(reaction.emoji) in ("✅", "❌")
+        )
+
+    try:
+        reaction, user_react = await bot.wait_for(
+            "reaction_add",
+            timeout=86400,
+            check=check
+        )
+    except asyncio.TimeoutError:
+        await msg.edit(
+            embed=discord.Embed(
+                description="⌛ Запрос на разбан был автоматически отменён (истекло время ожидания).",
+                color=discord.Color.red()
+            )
+        )
+        return
+
+    # ---- ОТКЛОНЕНИЕ ----
+    if str(reaction.emoji) == "❌":
+        await msg.edit(
+            embed=discord.Embed(
+                description=(
+                    "❌ **Разбан отклонён.**\n\n"
+                    f"Решение принял: {chief_member.mention}"
+                ),
+                color=discord.Color.red()
+            )
+        )
+        return
+
+    # ---- ПОДТВЕРЖДЕНИЕ ----
+    now = datetime.now(MSK)
+
+    await guild.unban(
+        user,
+        reason=f"{reason} | Инициатор: {ctx.author} | Подтвердил: Главный Врач"
+    )
+
+    # ЛС пользователю
+    try:
+        dm_embed = discord.Embed(
+            description=(
+                "🟢 **Ваша блокировка была снята.**\n\n"
+                "Вы снова можете получить доступ к Discord серверу "
+                "фракции **Министерство Здравоохранения**.\n\n"
+                f"📄 **Причина разблокировки:** {reason}\n\n"
+                f"👤 **Инициатор разблокировки:** {ctx.author}\n"
+                f"✅ **Подтвердил разблокировку:** Главный Врач\n\n"
+                f"📅 **Дата разблокировки:** {now.strftime('%d.%m.%Y')}\n"
+                f"⏰ **Время разблокировки:** {now.strftime('%H:%M')} (МСК)"
+            ),
+            color=discord.Color.green()
+        )
+        await user.send(embed=dm_embed)
+    except:
+        pass
+
+    await msg.edit(
+        embed=discord.Embed(
+            description=(
+                "✅ **Разбан подтверждён и выполнен.**\n\n"
+                f"👤 Пользователь: {user}\n"
+                f"📄 Причина: {reason}\n\n"
+                f"Инициатор: {ctx.author.mention}\n"
+                f"Подтвердил: {chief_member.mention}"
+            ),
+            color=discord.Color.green()
+        )
+    )
 
 # =====================================================
 # ========== НОВЫЕ КОМАНДЫ ГОС ФРАКЦИЙ =================
