@@ -879,12 +879,17 @@ async def mute(ctx, member: discord.Member, minutes: int, *, reason: str):
     }
     save_mutes(mutes)
 
-    await ctx.send(
-        f"🔇 **Мут выдан**\n\n"
-        f"{member.mention} | `{member.id}`\n"
-        f"⏳ До: `{unmute_time.strftime('%d.%m.%Y %H:%M')}`\n"
-        f"📄 Причина: {reason}"
+    embed = discord.Embed(
+        description=(
+            "🔇 **Мут выдан**\n\n"
+            f"{member.mention} | `{member.id}`\n\n"
+            f"🏆 **До:** `{unmute_time.strftime('%d.%m.%Y %H:%M')}`\n"
+            f"🧾 **Причина:** {reason}"
+        ),
+        color=discord.Color.orange()
     )
+
+    await ctx.send(embed=embed)
 
 # ====================== !унмут ======================
 @bot.command(name="унмут")
@@ -901,11 +906,17 @@ async def unmute(ctx, member: discord.Member, *, reason: str = "Истёк ср�
         del mutes[str(member.id)]
         save_mutes(mutes)
 
-    await ctx.send(
-        f"🔊 **Мут снят**\n\n"
-        f"{member.mention} | `{member.id}`\n"
-        f"📄 Причина: {reason}"
+    embed = discord.Embed(
+        description=(
+            "🔊 **Мут снят**\n\n"
+            f"{member.mention} | `{member.id}`\n\n"
+            f"🕒 **Дата:** `{datetime.now(MSK).strftime('%d.%m.%Y %H:%M')}`\n"
+            f"🧾 **Причина:** {reason}"
+        ),
+        color=discord.Color.green()
     )
+
+    await ctx.send(embed=embed)
 
 # ====================== !мутлист ======================
 @bot.command(name="мутлист")
