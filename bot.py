@@ -13,6 +13,11 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+MSK = timezone(timedelta(hours=3))
+BANS_FILE = "bans.json"
+
+CIVIL_ROLE = "Гражданский"
+
 # ---------- CHECK ----------
 def has_any_role():
     async def predicate(ctx):
@@ -30,7 +35,28 @@ CIVIL_ROLE = "Гражданский"
 FRACTION_NAME = "Министерство Здравоохранения"
 DOCS_ROLE = "[-] Документы не утверждены"
 
+# ===================== КОРРЕКТ НАСТРОЙКА ДЕФОВ МУТОВ =============
+def load_mutes():
+    try:
+        with open(MUTES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save_mutes(data):
+    with open(MUTES_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
 # ====================== EVENTS (ЕДИНЫЕ) ======================
+
+@bot.event
+async def on_command(ctx):
+    try:
+        await ctx.message.delete()
+    except discord.Forbidden:
+        pass
+    except discord.HTTPException:
+        pass
 
 @bot.event
 async def on_ready():
@@ -49,7 +75,7 @@ async def on_command(ctx):
         await ctx.message.delete()
     except discord.Forbidden:
         pass
-    except:
+    except discord.HTTPException:
         pass
 
 
@@ -58,19 +84,6 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
     raise error
-
-# ================= НАСТРОЙКИ =================
-
-intents = discord.Intents.default()
-intents.message_content = True
-intents.members = True
-
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-MSK = timezone(timedelta(hours=3))
-BANS_FILE = "bans.json"
-
-CIVIL_ROLE = "Гражданский"
 
 # ================= ПРОВЕРКА РОЛЕЙ =================
 
@@ -177,11 +190,12 @@ def save_bans(data):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 # ===================== РАЗМУТ =====================
-@tasks.loop(minutes=1)
+@tasks.loop(seconds=30)
 async def auto_unmute():
     await bot.wait_until_ready()
     mutes = load_mutes()
     now = datetime.now(MSK)
+    print("AUTO UNMUTE CHECK", now)
 
     changed = False
 
@@ -196,7 +210,7 @@ async def auto_unmute():
                 member = guild.get_member(int(uid))
                 mute_role = discord.utils.get(guild.roles, name="Mute")
 
-                if member and mute_role in member.roles:
+                if member and mute_role and mute_role in member.roles:
                     await member.remove_roles(
                         mute_role,
                         reason="Авто-размут по истечению срока"
@@ -870,18 +884,6 @@ from discord.ext import commands
 
 MSK = timezone(timedelta(hours=3))
 MUTES_FILE = "mute.json"
-
-# ====================== 💾 ЗАГРУЗКА / СОХРАНЕНИЕ ======================
-def load_mutes():
-    try:
-        with open(MUTES_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return {}
-
-def save_mutes(data):
-    with open(MUTES_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
 
 # ====================== !мут ======================
 @bot.command(name="мут")
